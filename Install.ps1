@@ -2,12 +2,13 @@
 <#
 
     .DESCRIPTION
-    Script to install MyVeeamReport
+    Script to install/update MyVeeamReport
 
     .NOTES
     Author: Bernhard Roth
-    Last Updated: 15 November 2022
-    Version: 1.0
+    Last Updated: 2 Februar 2023
+    Version: 1.1
+
 
 #>
 
@@ -17,9 +18,9 @@ $Config = "C:\Temp\MyVeeamReport_config.ps1"
 $Schedule = "C:\Temp\Schedule.ps1"
 
 
-$URL_Script = "https://github.com/broth-itk/psscripts/raw/master/MyVeeamReport/MyVeeamReport.ps1"
-$URL_Config = "https://github.com/broth-itk/psscripts/raw/master/MyVeeamReport/MyVeeamReport_config.ps1"
-$URL_Schedule = "https://github.com/broth-itk/psscripts/raw/master/MyVeeamReport/Schedule.ps1"
+$URL_Script = "https://raw.githubusercontent.com/marcohorstmann/MyVeeamReport/main/MyVeeamReport.ps1"
+$URL_Config = "https://raw.githubusercontent.com/marcohorstmann/MyVeeamReport/main/MyVeeamReport_config.ps1"
+$URL_Schedule = "https://raw.githubusercontent.com/marcohorstmann/MyVeeamReport/main/Schedule.ps1"
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
