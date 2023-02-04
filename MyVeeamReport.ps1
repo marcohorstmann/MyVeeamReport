@@ -33,16 +33,6 @@
     Veeam Backup & Replication v11.0 or later (full or console install)
     VMware Infrastructure
 
-    +---------------------------------------------------------------------------------------+
-    |   H. Szumovski: This is an update of Shawns last Version above: 9.5.3                 |
-    |   WARNING:  Only the reports which are set to "$true" in the user variables           |
-    |   region, will work, because I have not the time nor the equipment to                 |
-    |   test the others (especially everything related to replication functions).           |
-    |   If reports are disabled below (by being set to $false in the User-Variables         |
-    |   region), then I did not touch and upgrade them and they may not work.               |
-    |   Feel free to disable further reports if you do not need them.                       |
-    +---------------------------------------------------------------------------------------+
-
 #>
 
 #region User-Variables
@@ -50,7 +40,10 @@
 #endregion
 
 #region VersionInfo
-$MVRversion = "11.0.1.5"
+$MVRversion = "11.0.1.6"
+
+# Version 11.0.1.6 MH - 2023-02-04
+# Fixed Bug with license code and NFR licenses
 
 # Version 11.0.1.5 BR - 2022-11-15
 # Update license retrieval code, support different license variants
@@ -994,6 +987,10 @@ Function Get-VeeamSupportDate {
         'Rental' {
             $date = $licenseInfo.ExpirationDate
         }
+        'NFR' {
+            $date = $licenseInfo.ExpirationDate
+        }
+
     }
 
     [PSCustomObject]@{
