@@ -19,9 +19,9 @@
     Run script from (an elevated) PowerShell console
 
     .NOTES
-    New Authors: Bernhard Roth
-    Last Updated: 15 November 2022
-    Version: 11.0.1.5
+    New Authors: Marco Horstmann, Bernhard Roth & Herbert Szumovski
+    Last Updated: 04 Feburary 2023
+    Version: 11.0.1.6
     New Authors: Marco Horstmann & Herbert Szumovski
     Last Updated: 23 March 2022
     Version: 11.0.1.4
@@ -787,7 +787,6 @@ Function Get-VBRRepoInfo {
         "Nfs" {"NFS Direct"}
         default {"Unknown"}
       }
-      #ToDo: Check v10 Compatiblity. the .GetContainer().*.InBytes needs maybe removed. Maybe with if version Xy than?
       $outputObj = Build-Object $r.Name $($r.GetHost()).Name.ToLower() $r.Path $r.GetContainer().CachedFreeSpace.InBytes $r.GetContainer().CachedTotalSpace.InBytes $r.Options.MaxTaskCount $rType
     }
     $outputAry += $outputObj
@@ -1062,6 +1061,7 @@ Function Get-VMsBackupStatus {
   # Convert exclusion list to simple regular expression
   $excludevms_regex = ('(?i)^(' + (($script:excludeVMs | ForEach-Object {[regex]::escape($_)}) -join "|") + ')$') -replace "\\\*", ".*"
   $excludefolder_regex = ('(?i)^(' + (($script:excludeFolder | ForEach-Object {[regex]::escape($_)}) -join "|") + ')$') -replace "\\\*", ".*"
+  #ToDo: exclude VMs based on tags
   $excludedc_regex = ('(?i)^(' + (($script:excludeDC | ForEach-Object {[regex]::escape($_)}) -join "|") + ')$') -replace "\\\*", ".*"
   $vms=@{}
   # Build a hash table of all VMs.  Key is either Job Object Id (for any VM ever in a Veeam job) or vCenter ID+MoRef
