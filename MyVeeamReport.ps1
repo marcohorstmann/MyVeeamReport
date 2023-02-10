@@ -844,6 +844,13 @@ Function Get-VBRSORepoInfo {
         $outputObj = Build-Object $rs.Name $r.Name $($r.GetHost()).Name.ToLower() $r.Path $r.GetContainer().CachedFreeSpace.InBytes $r.GetContainer().CachedTotalSpace.InBytes $maxTaskCount $rType $rBackupSize
         $outputAry += $outputObj
       }
+    <# #Added for capacity tier begin ToDo
+    if($rs.CapacityExtent.Repository.Name.Length -gt 0) {
+        $ce = $rs.CapacityExtent
+        $outputObj = Build-Object $rs.Name $ce.Repository.Name $ce.Repository.ServicePoint $ce.Repository.AmazonS3Folder
+        $outputAry += $outputObj
+    }
+    #Added for capacity tier end #>
     }
   }
   End {
