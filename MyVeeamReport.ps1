@@ -780,6 +780,7 @@ Function Get-VBRRepoInfo {
       $rType = switch ($r.Type) {
         "WinLocal" {"Windows Local"}
         "LinuxLocal" {"Linux Local"}
+        "LinuxHardened" {"Hardened"}
         "CifsShare" {"CIFS Share"}
         "DataDomain" {"Data Domain"}
         "ExaGrid" {"ExaGrid"}
@@ -830,6 +831,7 @@ Function Get-VBRSORepoInfo {
         $rType = switch ($r.Type) {
           "WinLocal" {"Windows Local"}
           "LinuxLocal" {"Linux Local"}
+          "LinuxHardened" {"Hardened"}
           "CifsShare" {"CIFS Share"}
           "DataDomain" {"Data Domain"}
           "ExaGrid" {"ExaGrid"}
