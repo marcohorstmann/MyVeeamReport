@@ -40,7 +40,11 @@
 #endregion
 
 #region VersionInfo
-$MVRversion = "11.0.1.6"
+$MVRversion = "12.0.0.0"
+
+# Version 12.0.0.0 MH - 2023-02-20
+# Added some code to support file backup jobs
+# Added support for immediate copy (tested with v12 Unified Backup Copy Job)
 
 # Version 11.0.1.6 MH - 2023-02-04
 # Fixed Bug with license code and NFR licenses
@@ -348,7 +352,7 @@ If ($OpenConnection -ne $vbrServer){
 #region NonUser-Variables
 # Get all Backup/Backup Copy/Replica Jobs
 $allJobs = @()
-If ($showSummaryBk + $showJobsBk + $showAllSessBk + $showAllTasksBk + $showRunningBk +
+If ($showSummaryBk + $showJobsBk + $showFileJobsBk + $showAllSessBk + $showAllTasksBk + $showRunningBk +
   $showRunningTasksBk + $showWarnFailBk + $showTaskWFBk + $showSuccessBk + $showTaskSuccessBk +
   $showSummaryRp + $showJobsRp + $showAllSessRp + $showAllTasksRp + $showRunningRp +
   $showRunningTasksRp + $showWarnFailRp + $showTaskWFRp + $showSuccessRp + $showTaskSuccessRp +
@@ -357,8 +361,13 @@ If ($showSummaryBk + $showJobsBk + $showAllSessBk + $showAllTasksBk + $showRunni
   $showTaskWFBc + $showSuccessBc + $showTaskSuccessBc) {
   $allJobs = Get-VBRJob -WarningAction SilentlyContinue
 }
+
+#Other version where FileBackup is just added to normal backup job sessions.
+#$allJobsBk = @($allJobs | Where-Object {$_.JobType -eq "Backup" -or $_.JobType -eq"NasBackup" })
 # Get all Backup Jobs
 $allJobsBk = @($allJobs | Where-Object {$_.JobType -eq "Backup"})
+# Get all File Backup Jobs
+$allFileJobsBk += @($allJobs | Where-Object {$_.JobType -eq "NasBackup"})
 # Get all Replication Jobs
 $allJobsRp = @($allJobs | Where-Object {$_.JobType -eq "Replica"})
 # Get all Backup Copy Jobs
@@ -389,6 +398,13 @@ $allSess = @()
 If ($allJobs) {
   $allSess = Get-VBRBackupSession
 }
+# Get all File / NAS Backup Sessions
+$allFileSess = @()
+If ($allFileJobs) {
+  $allFileSess = Get-VBRNASBackupSession -Name *
+}
+
+
 # Get all Restore Sessions
 $allSessResto = @()
 If ($showRestoRunVM + $showRestoreVM) {
@@ -495,6 +511,45 @@ $failsSessionsBk = @($sessListBk | Where-Object {$_.Result -eq "Failed"})
 $runningSessionsBk = @($sessListBk | Where-Object {$_.State -eq "Working"})
 $failedSessionsBk = @($sessListBk | Where-Object {($_.Result -eq "Failed") -and ($_.WillBeRetried -ne "True")})
 
+# File Backup Session Section Start
+
+$fileSessListBk = @($allFileSess | Where-Object {($_.EndTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.CreationTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.State -eq "Working") -and $_.JobType -eq "Backup"})
+If ($null -ne $backupJob -and $backupJob -ne "") {
+  $allFileJobsBkTmp = @()
+  $fileSessListBkTmp = @()
+  $fileBackupsBkTmp = @()
+  Foreach ($bkJob in $backupJob) {
+    $allFileJobsBkTmp += $allFileJobsBk | Where-Object {$_.Name -like $bkJob}
+    $fileSessListBkTmp += $fileSessListBk | Where-Object {$_.JobName -like $bkJob}
+    $fileBackupsBkTmp += $fileBackupsBk | Where-Object {$_.JobName -like $bkJob}
+  }
+  $allFileJobsBk = $allFileJobsBkTmp | Sort-Object Id -Unique
+  $fileSessListBk = $fileSessListBkTmp | Sort-Object Id -Unique
+  $fileBackupsBk = $fileBackupsBkTmp | Sort-Object Id -Unique
+}
+If ($onlyLastBk) {
+  $tempFileSessListBk = $fileSessListBk
+  $fileSessListBk = @()
+  Foreach($job in $allFileJobsBk) {
+    $fileSessListBk += $tempFileSessListBk | Where-Object {$_.Jobname -eq $job.name} | Sort-Object EndTime -Descending | Select-Object -First 1
+  }
+}
+# Get Backup Session information
+$totalXferBk = 0
+$totalReadBk = 0
+
+$fileSessListBk | ForEach-Object {$totalXferBk += $([Math]::Round([Decimal]$_.Progress.TransferedSize/1GB, 2))}
+$fileSessListBk | ForEach-Object {$totalReadBk += $([Math]::Round([Decimal]$_.Progress.ReadSize/1GB, 2))}
+$successFileSessionsBk = @($fileSessListBk | Where-Object {$_.Result -eq "Success"})
+$warningFileSessionsBk = @($fileSessListBk | Where-Object {$_.Result -eq "Warning"})
+$failsFileSessionsBk = @($fileSessListBk | Where-Object {$_.Result -eq "Failed"})
+$runningFileSessionsBk = @($fileSessListBk | Where-Object {$_.State -eq "Working"})
+$failedFileSessionsBk = @($fileSessListBk | Where-Object {($_.Result -eq "Failed") -and ($_.WillBeRetried -ne "True")})
+
+
+
+# End File Backup Session Section End
+
 # Gather VM Restore Sessions within timeframe
 $sessListResto = @($allSessResto | Where-Object {$_.EndTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.CreationTime -ge (Get-Date).AddHours(-$HourstoCheck) -or !($_.IsCompleted)})
 # Get VM Restore Session information
@@ -532,7 +587,7 @@ $runningSessionsRp = @($sessListRp | Where-Object {$_.State -eq "Working"})
 $failedSessionsRp = @($sessListRp | Where-Object {($_.Result -eq "Failed") -and ($_.WillBeRetried -ne "True")})
 
 # Gather all Backup Copy Sessions within timeframe
-$sessListBc = @($allSess | Where-Object {($_.EndTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.CreationTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.State -match "Working|Idle") -and $_.JobType -eq "BackupSync"})
+$sessListBc = @($allSess | Where-Object {($_.EndTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.CreationTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.State -match "Working|Stopped|Idle") -and ($_.JobType -eq "BackupSync" -or $_.JobType -eq "SimpleBackupCopyWorker")})
 If ($null -ne $bcopyJob -and $bcopyJob -ne "") {
   $allJobsBcTmp = @()
   $sessListBcTmp = @()
@@ -1499,7 +1554,48 @@ If ($showJobsBk) {
   }
 }
 
-# Get Backup Job Size
+# Get Backup Job Status Begin
+$bodyFileJobsBk = $null
+If ($showFileJobsBk) {
+  If ($allFileJobsBk.count -gt 0) {
+    $bodyFileJobsBk = @()
+    Foreach($bkJob in $allFileJobsBk) {
+      $bodyFileJobsBk += $bkJob | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
+        @{Name="Enabled"; Expression = {$_.IsScheduleEnabled}},
+        @{Name="Status"; Expression = {
+          If ($bkJob.IsRunning) {
+            $currentSess = $runningSessionsBk | Where-Object {$_.JobName -eq $bkJob.Name}
+            $csessPercent = $currentSess.Progress.Percents
+            $csessSpeed = [Math]::Round($currentSess.Progress.AvgSpeed/1MB,2)
+            $cStatus = "$($csessPercent)% completed at $($csessSpeed) MB/s"
+            $cStatus
+          } Else {
+            "Stopped"
+          }
+        }},
+        @{Name="Target Repo"; Expression = {
+          If ($($repoList | Where-Object {$_.Id -eq $BkJob.Info.TargetRepositoryId}).Name) {
+            $($repoList | Where-Object {$_.Id -eq $BkJob.Info.TargetRepositoryId}).Name
+          } Else {
+            $($repoListSo | Where-Object {$_.Id -eq $BkJob.Info.TargetRepositoryId}).Name
+          }
+        }},
+        @{Name="Next Run"; Expression = {
+          If ($_.IsScheduleEnabled -eq $false) {"<Disabled>"}
+          ElseIf ($_.Options.JobOptions.RunManually) {"<not scheduled>"}
+          ElseIf ($_.ScheduleOptions.IsContinuous) {"<Continuous>"}
+		  ElseIf ($_.ScheduleOptions.OptionsScheduleAfterJob.IsEnabled) {"After [" + $(($allJobs + $allJobsTp) | Where-Object {$_.Id -eq $bkJob.Info.ParentScheduleId}).Name + "]"}
+		  Else {$_.ScheduleOptions.NextRun}
+        }},
+        @{Name="Last Result"; Expression = {If ($_.Info.LatestStatus -eq "None"){"Unknown"}Else{$_.Info.LatestStatus}}}
+    }
+    $bodyFileJobsBk = $bodyFileJobsBk | Sort-Object "Next Run" | ConvertTo-HTML -Fragment
+    $bodyFileJobsBk = $subHead01 + "File Backup Job Status" + $subHead02 + $bodyFileJobsBk
+  }
+}
+# Get File Backup Job Status End
+
+# Get Backup Job Size Begin
 $bodyJobSizeBk = $null
 If ($showBackupSizeBk) {
   If ($backupsBk.count -gt 0) {
@@ -1511,6 +1607,22 @@ If ($showBackupSizeBk) {
     $bodyJobSizeBk = $subHead01 + "Backup Job Size" + $subHead02 + $bodyJobSizeBk
   }
 }
+# Get Backup Job Size End
+
+# Get File Backup Job Size Begin
+$bodyFileJobSizeBk = $null
+If ($showFileBackupSizeBk) {
+  If ($fileBackupsBk.count -gt 0) {
+    $bodyFileJobSizeBk = Get-BackupSize -backups $fileBackupsBk | Sort-Object JobName | Select-Object @{Name="Job Name"; Expression = {$_.JobName}},
+      @{Name="VM Count"; Expression = {$_.VMCount}},
+      @{Name="Repository"; Expression = {$_.Repo}},
+      @{Name="Data Size (GB)"; Expression = {$_.DataSize}},
+      @{Name="Backup Size (GB)"; Expression = {$_.BackupSize}} | ConvertTo-HTML -Fragment
+    $bodyFileJobSizeBk = $subHead01 + "File Backup Job Size" + $subHead02 + $bodyFileJobSizeBk
+  }
+}
+# Get Backup Job Size End
+
 
 # Get all Backup Sessions
 $bodyAllSessBk = $null
@@ -4138,7 +4250,7 @@ If ($bodyMultiJobs) {
   $htmlOutput += $HTMLbreak
 }
 
-$htmlOutput += $bodyJobsBk + $bodyJobSizeBk + $bodyAllSessBk + $bodyAllTasksBk + $bodyRunningBk + $bodyTasksRunningBk + $bodySessWFBk + $bodyTaskWFBk + $bodySessSuccBk + $bodyTaskSuccBk
+$htmlOutput += $bodyJobsBk + $bodyJobSizeBk + $bodyFileJobsBk + $bodyFileJobSizeBk + $bodyAllSessBk + $bodyAllTasksBk + $bodyRunningBk + $bodyTasksRunningBk + $bodySessWFBk + $bodyTaskWFBk + $bodySessSuccBk + $bodyTaskSuccBk
 
 If ($bodyJobsBk + $bodyJobSizeBk + $bodyAllSessBk + $bodyAllTasksBk + $bodyRunningBk + $bodyTasksRunningBk + $bodySessWFBk + $bodyTaskWFBk + $bodySessSuccBk + $bodyTaskSuccBk) {
   $htmlOutput += $HTMLbreak
