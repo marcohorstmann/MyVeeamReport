@@ -20,8 +20,8 @@
 
     .NOTES
     New Authors: Marco Horstmann, Bernhard Roth & Herbert Szumovski
-    Last Updated: 04 Feburary 2023
-    Version: 11.0.1.6
+    Last Updated: 20 Feburary 2023
+    Version: 12.0.0.0
     New Authors: Marco Horstmann & Herbert Szumovski
     Last Updated: 23 March 2022
     Version: 11.0.1.4
@@ -367,7 +367,7 @@ If ($showSummaryBk + $showJobsBk + $showFileJobsBk + $showAllSessBk + $showAllTa
 # Get all Backup Jobs
 $allJobsBk = @($allJobs | Where-Object {$_.JobType -eq "Backup"})
 # Get all File Backup Jobs
-$allFileJobsBk += @($allJobs | Where-Object {$_.JobType -eq "NasBackup"})
+$allFileJobsBk = @($allJobs | Where-Object {$_.JobType -eq "NasBackup"})
 # Get all Replication Jobs
 $allJobsRp = @($allJobs | Where-Object {$_.JobType -eq "Replica"})
 # Get all Backup Copy Jobs
@@ -997,41 +997,8 @@ Function Get-VeeamVersion {
   }
 }
 
-# Function Get-VeeamSupportDate {
-#   param (
-#     [string]$vbrServer
-#   )
-#   # Query (remote) registry with WMI for license info
-#   Try{
-#     $wmi = get-wmiobject -list "StdRegProv" -namespace root\default -computername $vbrServer -ErrorAction Stop
-#     $hklm = 2147483650
-#     $bKey = "SOFTWARE\Veeam\Veeam Backup and Replication\license"
-#     $bValue = "Lic1"
-#     $regBinary = ($wmi.GetBinaryValue($hklm, $bKey, $bValue)).uValue
-#     $veeamLicInfo = [string]::Join($null, ($regBinary | % { [char][int]$_; }))
-#     # Convert Binary key
-#     $pattern = "License expires\=\d{1,2}\/\d{1,2}\/\d{1,4}"
-#     $expirationDate = [regex]::matches($VeeamLicInfo, $pattern)[0].Value.Split("=")[1]
-#     $datearray = $expirationDate -split '/'
-#     $expirationDate = Get-Date -Day $datearray[0] -Month $datearray[1] -Year $datearray[2]
-#     $totalDaysLeft = ($expirationDate - (get-date)).Totaldays.toString().split(",")[0]
-#     $totalDaysLeft = [int]$totalDaysLeft
-#     $objoutput = New-Object -TypeName PSObject -Property @{
-#       ExpDate = $expirationDate.ToShortDateString()
-#       DaysRemain = $totalDaysLeft
-#     }
-#   } Catch{
-#     $objoutput = New-Object -TypeName PSObject -Property @{
-#       ExpDate = "WMI Connection Failed"
-#       DaysRemain = "WMI Connection Failed"
-#     }
-#   }
-#   $objoutput
-# }
-
-
 Function Get-VeeamSupportDate {
-    # Query (remote) registry with WMI for license info
+    # Query for license info
     $licenseInfo = Get-VBRInstalledLicense
 
     $type = $licenseinfo.Type
@@ -1226,6 +1193,7 @@ function Get-BackupSize {
   }
   $outputObj
 }
+
 Function Get-MultiJob {
   $outputAry = @()
   $vmMultiJobs = (Get-VBRBackupSession |
@@ -1268,7 +1236,6 @@ Function Get-MultiJob {
 #region Report
 # Get Veeam Version
 $objectVersion = Get-VeeamVersion
-
 
 If ($objectVersion.VeeamVersion -lt 11.0) {
   Write-Host "Script requires VBR v11.0 or higher" -ForegroundColor Red
@@ -1371,7 +1338,7 @@ $footerObj = @"
 </html>
 "@
 
-#Get VM Backup Status
+#region Get VM Backup Status
 $vmStatus = @()
 If ($showSummaryProtect + $showUnprotectedVMs + $showUnprotectedVMsInfo + $showProtectedVMs) {
   $vmStatus = Get-VMsBackupStatus
@@ -1389,8 +1356,9 @@ ForEach ($VM in $missingVMs) {
 $successVMs = @($vmStatus | Where-Object {$_.Status -eq "Success"})
 # VMs Backed Up w/Warning
 $warnVMs = @($vmStatus | Where-Object {$_.Status -eq "Warning"})
+#endregion
 
-# Get VM Backup Protection Summary
+#region Get VM Backup Protection Summary
 $bodySummaryProtect = $null
 $sumprotectHead = $subHead01
 If ($showSummaryProtect) {
@@ -1427,9 +1395,9 @@ If ($showSummaryProtect) {
   $bodySummaryProtect = $summaryProtect | ConvertTo-HTML -Fragment
   $bodySummaryProtect = $sumprotectHead + "VM Backup Protection Summary" + $subHead02 + $bodySummaryProtect
 }
+#endregion
 
-
-# Get VMs Missing Backups
+#region Get VMs Missing Backups
 $bodyMissing = $null
 If ($showUnprotectedVMs -Or $showUnprotectedVMsInfo) {
   If ($missingVMs.count -gt 0) {
@@ -1445,6 +1413,7 @@ If ($showUnprotectedVMs -Or $showUnprotectedVMsInfo) {
     }
   }
 }
+#endregion
 
 # Get VMs Backed Up w/Warnings
 $bodyWarning = $null
@@ -4202,6 +4171,7 @@ If ($showServices) {
   }
 }
 
+#region license info
 # Get License Info
 $bodyLicense = $null
 If ($showLicExp) {
@@ -4229,9 +4199,9 @@ If ($showLicExp) {
     }
   $bodyLicense = $licHead + "License/Support Renewal Date" + $subHead02 + $bodyLicense
 }
+#endregion
 
-
-# Combine HTML Output
+#region Combine HTML Output
 $htmlOutput = $headerObj + $bodyTop + $bodySummaryProtect + $bodySummaryBK + $bodySummaryRp + $bodySummaryBc + $bodySummaryTp + $bodySummaryEp + $bodySummarySb
 
 If ($bodySummaryProtect + $bodySummaryBK + $bodySummaryRp + $bodySummaryBc + $bodySummaryTp + $bodySummaryEp + $bodySummarySb) {
