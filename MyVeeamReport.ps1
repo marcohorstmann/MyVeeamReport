@@ -40,7 +40,11 @@
 #endregion
 
 #region VersionInfo
-$MVRversion = "12.0.0.0"
+$MVRversion = "12.0.0.1"
+
+# Version 12.0.0.1 MH - 2023-02-21
+# Changed tape code to show GFS media pools
+# Fixed error with backup copy session reporting (Thx to Nathan)
 
 # Version 12.0.0.0 MH - 2023-02-20
 # Added some code to support file backup jobs
@@ -587,7 +591,7 @@ $runningSessionsRp = @($sessListRp | Where-Object {$_.State -eq "Working"})
 $failedSessionsRp = @($sessListRp | Where-Object {($_.Result -eq "Failed") -and ($_.WillBeRetried -ne "True")})
 
 # Gather all Backup Copy Sessions within timeframe
-$sessListBc = @($allSess | Where-Object {($_.EndTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.CreationTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.State -match "Working|Stopped|Idle") -and ($_.JobType -eq "BackupSync" -or $_.JobType -eq "SimpleBackupCopyWorker")})
+$sessListBc = @($allSess | Where-Object {($_.EndTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.CreationTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.State -match "Working|Idle") -and ($_.JobType -eq "BackupSync" -or $_.JobType -eq "SimpleBackupCopyWorker")})
 If ($null -ne $bcopyJob -and $bcopyJob -ne "") {
   $allJobsBcTmp = @()
   $sessListBcTmp = @()
@@ -3342,10 +3346,10 @@ If ($showTapes) {
   }
 }
 
-# Get all Tapes in each Custom Media Pool
+# Get all Tapes in each Custom/GFS Media Pool
 $bodyTpPool = $null
 If ($showTpMp) {
-  ForEach ($mp in ($mediaPools | Where-Object {$_.Type -eq "Custom"} | Sort-Object Name)) {
+  ForEach ($mp in ($mediaPools | Where-Object {$_.Type -eq "Custom" -or $_.Type -eq "GFS"} | Sort-Object Name)) {
     $expTapes = @($mediaTapes | Where-Object {($_.MediaPoolId -eq $mp.Id)})
     If ($expTapes.Count -gt 0) {
       $expTapes = $expTapes | Select-Object Name, Barcode,
