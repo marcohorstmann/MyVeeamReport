@@ -20,8 +20,8 @@
 
     .NOTES
     New Authors: Marco Horstmann, Bernhard Roth & Herbert Szumovski
-    Last Updated: 04 Feburary 2023
-    Version: 11.0.1.6
+    Last Updated: 20 Feburary 2023
+    Version: 12.0.0.0
     New Authors: Marco Horstmann & Herbert Szumovski
     Last Updated: 23 March 2022
     Version: 11.0.1.4
@@ -40,7 +40,15 @@
 #endregion
 
 #region VersionInfo
-$MVRversion = "11.0.1.6"
+$MVRversion = "12.0.0.1"
+
+# Version 12.0.0.1 MH - 2023-02-21
+# Changed tape code to show GFS media pools
+# Fixed error with backup copy session reporting (Thx to Nathan)
+
+# Version 12.0.0.0 MH - 2023-02-20
+# Added some code to support file backup jobs
+# Added support for immediate copy (tested with v12 Unified Backup Copy Job)
 
 # Version 11.0.1.6 MH - 2023-02-04
 # Fixed Bug with license code and NFR licenses
@@ -348,7 +356,7 @@ If ($OpenConnection -ne $vbrServer){
 #region NonUser-Variables
 # Get all Backup/Backup Copy/Replica Jobs
 $allJobs = @()
-If ($showSummaryBk + $showJobsBk + $showAllSessBk + $showAllTasksBk + $showRunningBk +
+If ($showSummaryBk + $showJobsBk + $showFileJobsBk + $showAllSessBk + $showAllTasksBk + $showRunningBk +
   $showRunningTasksBk + $showWarnFailBk + $showTaskWFBk + $showSuccessBk + $showTaskSuccessBk +
   $showSummaryRp + $showJobsRp + $showAllSessRp + $showAllTasksRp + $showRunningRp +
   $showRunningTasksRp + $showWarnFailRp + $showTaskWFRp + $showSuccessRp + $showTaskSuccessRp +
@@ -357,8 +365,13 @@ If ($showSummaryBk + $showJobsBk + $showAllSessBk + $showAllTasksBk + $showRunni
   $showTaskWFBc + $showSuccessBc + $showTaskSuccessBc) {
   $allJobs = Get-VBRJob -WarningAction SilentlyContinue
 }
+
+#Other version where FileBackup is just added to normal backup job sessions.
+#$allJobsBk = @($allJobs | Where-Object {$_.JobType -eq "Backup" -or $_.JobType -eq"NasBackup" })
 # Get all Backup Jobs
 $allJobsBk = @($allJobs | Where-Object {$_.JobType -eq "Backup"})
+# Get all File Backup Jobs
+$allFileJobsBk = @($allJobs | Where-Object {$_.JobType -eq "NasBackup"})
 # Get all Replication Jobs
 $allJobsRp = @($allJobs | Where-Object {$_.JobType -eq "Replica"})
 # Get all Backup Copy Jobs
@@ -389,6 +402,13 @@ $allSess = @()
 If ($allJobs) {
   $allSess = Get-VBRBackupSession
 }
+# Get all File / NAS Backup Sessions
+$allFileSess = @()
+If ($allFileJobs) {
+  $allFileSess = Get-VBRNASBackupSession -Name *
+}
+
+
 # Get all Restore Sessions
 $allSessResto = @()
 If ($showRestoRunVM + $showRestoreVM) {
@@ -495,6 +515,45 @@ $failsSessionsBk = @($sessListBk | Where-Object {$_.Result -eq "Failed"})
 $runningSessionsBk = @($sessListBk | Where-Object {$_.State -eq "Working"})
 $failedSessionsBk = @($sessListBk | Where-Object {($_.Result -eq "Failed") -and ($_.WillBeRetried -ne "True")})
 
+# File Backup Session Section Start
+
+$fileSessListBk = @($allFileSess | Where-Object {($_.EndTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.CreationTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.State -eq "Working") -and $_.JobType -eq "Backup"})
+If ($null -ne $backupJob -and $backupJob -ne "") {
+  $allFileJobsBkTmp = @()
+  $fileSessListBkTmp = @()
+  $fileBackupsBkTmp = @()
+  Foreach ($bkJob in $backupJob) {
+    $allFileJobsBkTmp += $allFileJobsBk | Where-Object {$_.Name -like $bkJob}
+    $fileSessListBkTmp += $fileSessListBk | Where-Object {$_.JobName -like $bkJob}
+    $fileBackupsBkTmp += $fileBackupsBk | Where-Object {$_.JobName -like $bkJob}
+  }
+  $allFileJobsBk = $allFileJobsBkTmp | Sort-Object Id -Unique
+  $fileSessListBk = $fileSessListBkTmp | Sort-Object Id -Unique
+  $fileBackupsBk = $fileBackupsBkTmp | Sort-Object Id -Unique
+}
+If ($onlyLastBk) {
+  $tempFileSessListBk = $fileSessListBk
+  $fileSessListBk = @()
+  Foreach($job in $allFileJobsBk) {
+    $fileSessListBk += $tempFileSessListBk | Where-Object {$_.Jobname -eq $job.name} | Sort-Object EndTime -Descending | Select-Object -First 1
+  }
+}
+# Get Backup Session information
+$totalXferBk = 0
+$totalReadBk = 0
+
+$fileSessListBk | ForEach-Object {$totalXferBk += $([Math]::Round([Decimal]$_.Progress.TransferedSize/1GB, 2))}
+$fileSessListBk | ForEach-Object {$totalReadBk += $([Math]::Round([Decimal]$_.Progress.ReadSize/1GB, 2))}
+$successFileSessionsBk = @($fileSessListBk | Where-Object {$_.Result -eq "Success"})
+$warningFileSessionsBk = @($fileSessListBk | Where-Object {$_.Result -eq "Warning"})
+$failsFileSessionsBk = @($fileSessListBk | Where-Object {$_.Result -eq "Failed"})
+$runningFileSessionsBk = @($fileSessListBk | Where-Object {$_.State -eq "Working"})
+$failedFileSessionsBk = @($fileSessListBk | Where-Object {($_.Result -eq "Failed") -and ($_.WillBeRetried -ne "True")})
+
+
+
+# End File Backup Session Section End
+
 # Gather VM Restore Sessions within timeframe
 $sessListResto = @($allSessResto | Where-Object {$_.EndTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.CreationTime -ge (Get-Date).AddHours(-$HourstoCheck) -or !($_.IsCompleted)})
 # Get VM Restore Session information
@@ -532,7 +591,7 @@ $runningSessionsRp = @($sessListRp | Where-Object {$_.State -eq "Working"})
 $failedSessionsRp = @($sessListRp | Where-Object {($_.Result -eq "Failed") -and ($_.WillBeRetried -ne "True")})
 
 # Gather all Backup Copy Sessions within timeframe
-$sessListBc = @($allSess | Where-Object {($_.EndTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.CreationTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.State -match "Working|Idle") -and $_.JobType -eq "BackupSync"})
+$sessListBc = @($allSess | Where-Object {($_.EndTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.CreationTime -ge (Get-Date).AddHours(-$HourstoCheck) -or $_.State -match "Working|Idle") -and ($_.JobType -eq "BackupSync" -or $_.JobType -eq "SimpleBackupCopyWorker")})
 If ($null -ne $bcopyJob -and $bcopyJob -ne "") {
   $allJobsBcTmp = @()
   $sessListBcTmp = @()
@@ -942,41 +1001,8 @@ Function Get-VeeamVersion {
   }
 }
 
-# Function Get-VeeamSupportDate {
-#   param (
-#     [string]$vbrServer
-#   )
-#   # Query (remote) registry with WMI for license info
-#   Try{
-#     $wmi = get-wmiobject -list "StdRegProv" -namespace root\default -computername $vbrServer -ErrorAction Stop
-#     $hklm = 2147483650
-#     $bKey = "SOFTWARE\Veeam\Veeam Backup and Replication\license"
-#     $bValue = "Lic1"
-#     $regBinary = ($wmi.GetBinaryValue($hklm, $bKey, $bValue)).uValue
-#     $veeamLicInfo = [string]::Join($null, ($regBinary | % { [char][int]$_; }))
-#     # Convert Binary key
-#     $pattern = "License expires\=\d{1,2}\/\d{1,2}\/\d{1,4}"
-#     $expirationDate = [regex]::matches($VeeamLicInfo, $pattern)[0].Value.Split("=")[1]
-#     $datearray = $expirationDate -split '/'
-#     $expirationDate = Get-Date -Day $datearray[0] -Month $datearray[1] -Year $datearray[2]
-#     $totalDaysLeft = ($expirationDate - (get-date)).Totaldays.toString().split(",")[0]
-#     $totalDaysLeft = [int]$totalDaysLeft
-#     $objoutput = New-Object -TypeName PSObject -Property @{
-#       ExpDate = $expirationDate.ToShortDateString()
-#       DaysRemain = $totalDaysLeft
-#     }
-#   } Catch{
-#     $objoutput = New-Object -TypeName PSObject -Property @{
-#       ExpDate = "WMI Connection Failed"
-#       DaysRemain = "WMI Connection Failed"
-#     }
-#   }
-#   $objoutput
-# }
-
-
 Function Get-VeeamSupportDate {
-    # Query (remote) registry with WMI for license info
+    # Query for license info
     $licenseInfo = Get-VBRInstalledLicense
 
     $type = $licenseinfo.Type
@@ -1171,6 +1197,7 @@ function Get-BackupSize {
   }
   $outputObj
 }
+
 Function Get-MultiJob {
   $outputAry = @()
   $vmMultiJobs = (Get-VBRBackupSession |
@@ -1213,7 +1240,6 @@ Function Get-MultiJob {
 #region Report
 # Get Veeam Version
 $objectVersion = Get-VeeamVersion
-
 
 If ($objectVersion.VeeamVersion -lt 11.0) {
   Write-Host "Script requires VBR v11.0 or higher" -ForegroundColor Red
@@ -1316,7 +1342,7 @@ $footerObj = @"
 </html>
 "@
 
-#Get VM Backup Status
+#region Get VM Backup Status
 $vmStatus = @()
 If ($showSummaryProtect + $showUnprotectedVMs + $showUnprotectedVMsInfo + $showProtectedVMs) {
   $vmStatus = Get-VMsBackupStatus
@@ -1334,8 +1360,9 @@ ForEach ($VM in $missingVMs) {
 $successVMs = @($vmStatus | Where-Object {$_.Status -eq "Success"})
 # VMs Backed Up w/Warning
 $warnVMs = @($vmStatus | Where-Object {$_.Status -eq "Warning"})
+#endregion
 
-# Get VM Backup Protection Summary
+#region Get VM Backup Protection Summary
 $bodySummaryProtect = $null
 $sumprotectHead = $subHead01
 If ($showSummaryProtect) {
@@ -1372,9 +1399,9 @@ If ($showSummaryProtect) {
   $bodySummaryProtect = $summaryProtect | ConvertTo-HTML -Fragment
   $bodySummaryProtect = $sumprotectHead + "VM Backup Protection Summary" + $subHead02 + $bodySummaryProtect
 }
+#endregion
 
-
-# Get VMs Missing Backups
+#region Get VMs Missing Backups
 $bodyMissing = $null
 If ($showUnprotectedVMs -Or $showUnprotectedVMsInfo) {
   If ($missingVMs.count -gt 0) {
@@ -1390,6 +1417,7 @@ If ($showUnprotectedVMs -Or $showUnprotectedVMsInfo) {
     }
   }
 }
+#endregion
 
 # Get VMs Backed Up w/Warnings
 $bodyWarning = $null
@@ -1499,7 +1527,48 @@ If ($showJobsBk) {
   }
 }
 
-# Get Backup Job Size
+# Get Backup Job Status Begin
+$bodyFileJobsBk = $null
+If ($showFileJobsBk) {
+  If ($allFileJobsBk.count -gt 0) {
+    $bodyFileJobsBk = @()
+    Foreach($bkJob in $allFileJobsBk) {
+      $bodyFileJobsBk += $bkJob | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
+        @{Name="Enabled"; Expression = {$_.IsScheduleEnabled}},
+        @{Name="Status"; Expression = {
+          If ($bkJob.IsRunning) {
+            $currentSess = $runningSessionsBk | Where-Object {$_.JobName -eq $bkJob.Name}
+            $csessPercent = $currentSess.Progress.Percents
+            $csessSpeed = [Math]::Round($currentSess.Progress.AvgSpeed/1MB,2)
+            $cStatus = "$($csessPercent)% completed at $($csessSpeed) MB/s"
+            $cStatus
+          } Else {
+            "Stopped"
+          }
+        }},
+        @{Name="Target Repo"; Expression = {
+          If ($($repoList | Where-Object {$_.Id -eq $BkJob.Info.TargetRepositoryId}).Name) {
+            $($repoList | Where-Object {$_.Id -eq $BkJob.Info.TargetRepositoryId}).Name
+          } Else {
+            $($repoListSo | Where-Object {$_.Id -eq $BkJob.Info.TargetRepositoryId}).Name
+          }
+        }},
+        @{Name="Next Run"; Expression = {
+          If ($_.IsScheduleEnabled -eq $false) {"<Disabled>"}
+          ElseIf ($_.Options.JobOptions.RunManually) {"<not scheduled>"}
+          ElseIf ($_.ScheduleOptions.IsContinuous) {"<Continuous>"}
+		  ElseIf ($_.ScheduleOptions.OptionsScheduleAfterJob.IsEnabled) {"After [" + $(($allJobs + $allJobsTp) | Where-Object {$_.Id -eq $bkJob.Info.ParentScheduleId}).Name + "]"}
+		  Else {$_.ScheduleOptions.NextRun}
+        }},
+        @{Name="Last Result"; Expression = {If ($_.Info.LatestStatus -eq "None"){"Unknown"}Else{$_.Info.LatestStatus}}}
+    }
+    $bodyFileJobsBk = $bodyFileJobsBk | Sort-Object "Next Run" | ConvertTo-HTML -Fragment
+    $bodyFileJobsBk = $subHead01 + "File Backup Job Status" + $subHead02 + $bodyFileJobsBk
+  }
+}
+# Get File Backup Job Status End
+
+# Get Backup Job Size Begin
 $bodyJobSizeBk = $null
 If ($showBackupSizeBk) {
   If ($backupsBk.count -gt 0) {
@@ -1511,6 +1580,22 @@ If ($showBackupSizeBk) {
     $bodyJobSizeBk = $subHead01 + "Backup Job Size" + $subHead02 + $bodyJobSizeBk
   }
 }
+# Get Backup Job Size End
+
+# Get File Backup Job Size Begin
+$bodyFileJobSizeBk = $null
+If ($showFileBackupSizeBk) {
+  If ($fileBackupsBk.count -gt 0) {
+    $bodyFileJobSizeBk = Get-BackupSize -backups $fileBackupsBk | Sort-Object JobName | Select-Object @{Name="Job Name"; Expression = {$_.JobName}},
+      @{Name="VM Count"; Expression = {$_.VMCount}},
+      @{Name="Repository"; Expression = {$_.Repo}},
+      @{Name="Data Size (GB)"; Expression = {$_.DataSize}},
+      @{Name="Backup Size (GB)"; Expression = {$_.BackupSize}} | ConvertTo-HTML -Fragment
+    $bodyFileJobSizeBk = $subHead01 + "File Backup Job Size" + $subHead02 + $bodyFileJobSizeBk
+  }
+}
+# Get Backup Job Size End
+
 
 # Get all Backup Sessions
 $bodyAllSessBk = $null
@@ -3261,10 +3346,10 @@ If ($showTapes) {
   }
 }
 
-# Get all Tapes in each Custom Media Pool
+# Get all Tapes in each Custom/GFS Media Pool
 $bodyTpPool = $null
 If ($showTpMp) {
-  ForEach ($mp in ($mediaPools | Where-Object {$_.Type -eq "Custom"} | Sort-Object Name)) {
+  ForEach ($mp in ($mediaPools | Where-Object {$_.Type -eq "Custom" -or $_.Type -eq "GFS"} | Sort-Object Name)) {
     $expTapes = @($mediaTapes | Where-Object {($_.MediaPoolId -eq $mp.Id)})
     If ($expTapes.Count -gt 0) {
       $expTapes = $expTapes | Select-Object Name, Barcode,
@@ -4090,6 +4175,7 @@ If ($showServices) {
   }
 }
 
+#region license info
 # Get License Info
 $bodyLicense = $null
 If ($showLicExp) {
@@ -4117,9 +4203,9 @@ If ($showLicExp) {
     }
   $bodyLicense = $licHead + "License/Support Renewal Date" + $subHead02 + $bodyLicense
 }
+#endregion
 
-
-# Combine HTML Output
+#region Combine HTML Output
 $htmlOutput = $headerObj + $bodyTop + $bodySummaryProtect + $bodySummaryBK + $bodySummaryRp + $bodySummaryBc + $bodySummaryTp + $bodySummaryEp + $bodySummarySb
 
 If ($bodySummaryProtect + $bodySummaryBK + $bodySummaryRp + $bodySummaryBc + $bodySummaryTp + $bodySummaryEp + $bodySummarySb) {
@@ -4138,7 +4224,7 @@ If ($bodyMultiJobs) {
   $htmlOutput += $HTMLbreak
 }
 
-$htmlOutput += $bodyJobsBk + $bodyJobSizeBk + $bodyAllSessBk + $bodyAllTasksBk + $bodyRunningBk + $bodyTasksRunningBk + $bodySessWFBk + $bodyTaskWFBk + $bodySessSuccBk + $bodyTaskSuccBk
+$htmlOutput += $bodyJobsBk + $bodyJobSizeBk + $bodyFileJobsBk + $bodyFileJobSizeBk + $bodyAllSessBk + $bodyAllTasksBk + $bodyRunningBk + $bodyTasksRunningBk + $bodySessWFBk + $bodyTaskWFBk + $bodySessSuccBk + $bodyTaskSuccBk
 
 If ($bodyJobsBk + $bodyJobSizeBk + $bodyAllSessBk + $bodyAllTasksBk + $bodyRunningBk + $bodyTasksRunningBk + $bodySessWFBk + $bodyTaskWFBk + $bodySessSuccBk + $bodyTaskSuccBk) {
   $htmlOutput += $HTMLbreak

@@ -87,8 +87,12 @@ $showMultiJobs = $true
 $showSummaryBk = $true
 # Show Backup Job Status
 $showJobsBk = $true
+# Show File Backup Job Status
+$showFileJobsBk = $true
 # Show Backup Job Size (total)
 $showBackupSizeBk = $true
+# Show File Backup Job Size (total)
+$showFileBackupSizeBk = $true
 # Show detailed information for Backup Jobs/Sessions (Avg Speed, Total(GB), Processed(GB), Read(GB), Transferred(GB), Dedupe, Compression)
 $showDetailedBk = $true
 # Show all Backup Sessions within time frame ($reportMode)
