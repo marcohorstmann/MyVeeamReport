@@ -40,7 +40,12 @@
 #endregion
 
 #region VersionInfo
-$MVRversion = "12.0.0.1"
+$MVRversion = "12.0.0.2"
+
+# Version 12.0.0.2 MH - 2023-02-22
+# Added suggested code additions for Cloud Connect Repositories
+# (untested because I have no Cloud Connect Repo)
+
 
 # Version 12.0.0.1 MH - 2023-02-21
 # Changed tape code to show GFS media pools
@@ -4060,6 +4065,7 @@ If ($showRepo) {
       @{Name="Status"; Expression = {
         If ($_.FreePercentage -lt $repoCritical) {"Critical"}
         ElseIf ($_.StorageTotal -eq 0 -and $_.rtype -ne "SAN Snapshot")  {"Warning"}
+        ElseIf ($_.StorageTotal -eq 0) {"NoData"}
         ElseIf ($_.FreePercentage -lt $repoWarn) {"Warning"}
         ElseIf ($_.FreePercentage -eq "Unknown") {"Unknown"}
         Else {"OK"}}
@@ -4069,7 +4075,7 @@ If ($showRepo) {
       $repoHead = $subHead01err
     } ElseIf ($arrRepo.status -match "Warning|Unknown") {
       $repoHead = $subHead01war
-    } ElseIf ($arrRepo.status -match "OK") {
+    } ElseIf ($arrRepo.status -match "OK|NoData") {
       $repoHead = $subHead01suc
     } Else {
       $repoHead = $subHead01
