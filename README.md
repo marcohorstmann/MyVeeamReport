@@ -1,6 +1,6 @@
 
-# MyVeeam Report for Veeam Backup & Replication v11a
-Hi, this is a "little" powershell script which creates an instant configurable report about all stuff in your Veeam Backup and Replication environment. Because of my limited testlab capacity I'm only able to test with the current GA release of Veeam. 
+# MyVeeam Report for Veeam Backup & Replication v11a and v12.
+Hi, this is a "little" powershell script which creates an instant configurable report about all stuff in your Veeam Backup and Replication environment. Because of my limited testlab capacity I'm only able to test with the current GA release of Veeam. Currently I'm testing with v12.
 ## What’s New
 Current version is mainly an updated version of Shawn original script and enhancements written by several people. See [Contribution](#contribution) section of this document.
 ## Disclaimer
