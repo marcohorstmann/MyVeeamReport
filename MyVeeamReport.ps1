@@ -40,7 +40,10 @@
 #endregion
 
 #region VersionInfo
-$MVRversion = "12.0.0.2"
+$MVRversion = "12.0.0.3"
+
+# Version 12.0.0.3 MH - 2023-02-24
+# Added code for Agent Backup Size
 
 # Version 12.0.0.2 MH - 2023-02-22
 # Added suggested code additions for Cloud Connect Repositories
@@ -448,7 +451,7 @@ $backupsBk = @($jobBackups | Where-Object {$_.JobType -eq "Backup"})
 # Get Backup Copy Job Backups
 $backupsBc = @($jobBackups | Where-Object {$_.JobType -eq "BackupSync"})
 # Get Agent Backup Job Backups
-$backupsEp = @($jobBackups | Where-Object {$_.JobType -eq "EndpointBackup"})
+$backupsEp = @($jobBackups | Where-Object {$_.JobType -eq "EndpointBackup" -or $_.JobType -eq "EpAgentBackup" -or $_.JobType -eq "EpAgentPolicy"})
 
 # Get all Media Pools
 $mediaPools = Get-VBRTapeMediaPool
@@ -3644,9 +3647,10 @@ If ($showBackupSizeEp) {
     $bodyJobSizeEp = Get-BackupSize -backups $backupsEp | Sort-Object JobName | Select-Object @{Name="Job Name"; Expression = {$_.JobName}},
       @{Name="VM Count"; Expression = {$_.VMCount}},
       @{Name="Repository"; Expression = {$_.Repo}},
-      @{Name="Data Size (GB)"; Expression = {$_.DataSize}},
+      <#@{Name="Data Size (GB)"; Expression = {$_.DataSize}},
       @{Name="Backup Size (GB)"; Expression = {$_.BackupSize}},
-      @{Name="Log Backup Size (GB)"; Expression = {$_.LogSize}} | ConvertTo-HTML -Fragment
+      #Agent Jobs seems to work different and this was a easy fix#>
+      @{Name="Backup Size (GB)"; Expression = {$_.LogSize}} | ConvertTo-HTML -Fragment
     $bodyJobSizeEp = $subHead01 + "Agent Backup Job Size" + $subHead02 + $bodyJobSizeEp
   }
 }
