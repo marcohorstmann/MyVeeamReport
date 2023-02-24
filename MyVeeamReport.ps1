@@ -1180,10 +1180,19 @@ function Get-BackupSize {
   Foreach ($backup in $backups) {
     $backupSize = 0
     $dataSize = 0
+    $logSize = 0
     $files = $backup.GetAllStorages()
     Foreach ($file in $Files) {
       $backupSize += [math]::Round([long]$file.Stats.BackupSize/1GB, 2)
       $dataSize += [math]::Round([long]$file.Stats.DataSize/1GB, 2)
+    }
+    #Added Log Backup Reporting
+    $childBackups = $backup.FindChildBackups()
+    if($childBackups.count -gt 0) {
+      $logFiles = $childBackups.GetAllStorages()
+      Foreach ($logFile in $logFiles) {
+        $logSize += [math]::Round([long]$logFile.Stats.BackupSize/1GB, 2)
+      }
     }
     $repo = If ($($script:repoList | Where-Object {$_.Id -eq $backup.RepositoryId}).Name) {
               $($script:repoList | Where-Object {$_.Id -eq $backup.RepositoryId}).Name
@@ -1196,6 +1205,7 @@ function Get-BackupSize {
       Repo = $repo
       DataSize = $dataSize
       BackupSize = $backupSize
+      LogSize = $logSize
     }
     $vbrMasterObj = New-Object -TypeName PSObject -Property $vbrMasterHash
     $outputObj += $vbrMasterObj
@@ -1581,7 +1591,8 @@ If ($showBackupSizeBk) {
       @{Name="VM Count"; Expression = {$_.VMCount}},
       @{Name="Repository"; Expression = {$_.Repo}},
       @{Name="Data Size (GB)"; Expression = {$_.DataSize}},
-      @{Name="Backup Size (GB)"; Expression = {$_.BackupSize}} | ConvertTo-HTML -Fragment
+      @{Name="Backup Size (GB)"; Expression = {$_.BackupSize}},
+      @{Name="Log Backup Size (GB)"; Expression = {$_.LogSize}} | ConvertTo-HTML -Fragment
     $bodyJobSizeBk = $subHead01 + "Backup Job Size" + $subHead02 + $bodyJobSizeBk
   }
 }
@@ -1595,7 +1606,8 @@ If ($showFileBackupSizeBk) {
       @{Name="VM Count"; Expression = {$_.VMCount}},
       @{Name="Repository"; Expression = {$_.Repo}},
       @{Name="Data Size (GB)"; Expression = {$_.DataSize}},
-      @{Name="Backup Size (GB)"; Expression = {$_.BackupSize}} | ConvertTo-HTML -Fragment
+      @{Name="Backup Size (GB)"; Expression = {$_.BackupSize}},
+      @{Name="Log Backup Size (GB)"; Expression = {$_.LogSize}} | ConvertTo-HTML -Fragment
     $bodyFileJobSizeBk = $subHead01 + "File Backup Job Size" + $subHead02 + $bodyFileJobSizeBk
   }
 }
@@ -3633,7 +3645,8 @@ If ($showBackupSizeEp) {
       @{Name="VM Count"; Expression = {$_.VMCount}},
       @{Name="Repository"; Expression = {$_.Repo}},
       @{Name="Data Size (GB)"; Expression = {$_.DataSize}},
-      @{Name="Backup Size (GB)"; Expression = {$_.BackupSize}} | ConvertTo-HTML -Fragment
+      @{Name="Backup Size (GB)"; Expression = {$_.BackupSize}},
+      @{Name="Log Backup Size (GB)"; Expression = {$_.LogSize}} | ConvertTo-HTML -Fragment
     $bodyJobSizeEp = $subHead01 + "Agent Backup Job Size" + $subHead02 + $bodyJobSizeEp
   }
 }
