@@ -355,7 +355,12 @@ If ($OpenConnection -ne $vbrServer){
   Try {
     Connect-VBRServer -server $vbrServer -ErrorAction Stop
   } Catch {
-    Write-Host "Unable to connect to VBR server - $vbrServer" -ForegroundColor Red
+    if (!(Get-Command Connect-VBRServer -errorAction SilentlyContinue))
+    {
+        Write-Host "Unable to run. Veeam cmdlets not found" -ForegroundColor Red
+    } else {
+        Write-Host "Unable to connect to VBR server - $vbrServer" -ForegroundColor Red
+    }
     exit
   }
 }

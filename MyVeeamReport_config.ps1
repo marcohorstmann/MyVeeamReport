@@ -17,6 +17,7 @@
 
 # VBR Server (Server Name, FQDN, IP or localhost)
 $vbrServer = $env:computername
+#$vbrServer = "lab-vbr01"
 # Report mode (RPO) - valid modes: any number of hours, Weekly or Monthly
 # 24, 48, "Weekly", "Monthly"
 $reportMode = 24
@@ -31,6 +32,9 @@ $oddColor = "#f0f0f0"
 
 # Location of Veeam Core dll  
 $VeeamCorePath = "C:\Program Files\Veeam\Backup and Replication\Backup\Veeam.Backup.Core.dll"
+#If you are connect remotely to VBR server you need to use another console.
+#$VeeamCorePath = "C:\Program Files\Veeam\Backup and Replication\Console\Veeam.Backup.Core.dll"
+
 # Save HTML output to a file
 $saveHTML = $true
 # HTML File output path and filename
