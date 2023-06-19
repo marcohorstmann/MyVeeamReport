@@ -8,9 +8,9 @@
     Put here all your report customization settings.
 
     .NOTES
-    Author: Bernhard Roth
-    Last Updated: 15 November 2022
-    Version: 11.0.1.5
+    Authors: Bernhard Roth & Marco Horstmann
+    Last Updated: 19 June 2023
+    Version: 12.0.0.1
   
 #> 
 
@@ -41,6 +41,16 @@ $saveHTML = $true
 $pathHTML = ".\MyVeeamReport_$(Get-Date -format yyyyMMdd_HHmmss).htm"
 # Launch HTML file after creation
 $launchHTML = $true
+
+# Save CSV output to files
+$saveCSV = $true
+# CSV File output path and filename
+$baseFilenameCSV = ".\MyVeeamReport_$(Get-Date -format yyyyMMdd_HHmmss)"
+# Export All Tasks to CSV file
+$exportAllTasksBkToCSV = $true
+#Delimiter for CSV files
+$setCSVDelimiter = ";"
+
 
 # Email configuration
 $sendEmail = $false

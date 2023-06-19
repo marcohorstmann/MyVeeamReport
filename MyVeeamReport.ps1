@@ -1,4 +1,4 @@
-#requires -Version 5.0
+﻿#requires -Version 5.0
 <#
 
     .SYNOPSIS
@@ -20,8 +20,8 @@
 
     .NOTES
     New Authors: Marco Horstmann, Bernhard Roth & Herbert Szumovski
-    Last Updated: 20 Feburary 2023
-    Version: 12.0.0.0
+    Last Updated: 19 June 2023
+    Version: 12.0.0.4
     New Authors: Marco Horstmann & Herbert Szumovski
     Last Updated: 23 March 2022
     Version: 11.0.1.4
@@ -40,7 +40,10 @@
 #endregion
 
 #region VersionInfo
-$MVRversion = "12.0.0.3"
+$MVRversion = "12.0.0.4"
+
+# Version 12.0.0.4 MH - 2023-06-19
+# Added code for CSV generation for tasks
 
 # Version 12.0.0.3 MH - 2023-02-24
 # Added code for Agent Backup Size
@@ -355,12 +358,7 @@ If ($OpenConnection -ne $vbrServer){
   Try {
     Connect-VBRServer -server $vbrServer -ErrorAction Stop
   } Catch {
-    if (!(Get-Command Connect-VBRServer -errorAction SilentlyContinue))
-    {
-        Write-Host "Unable to run. Veeam cmdlets not found" -ForegroundColor Red
-    } else {
-        Write-Host "Unable to connect to VBR server - $vbrServer" -ForegroundColor Red
-    }
+    Write-Host "Unable to connect to VBR server - $vbrServer" -ForegroundColor Red
     exit
   }
 }
@@ -1848,6 +1846,9 @@ If ($showAllTasksBk) {
       }
       $bodyAllTasksBk = $allTasksBkHead + "Backup Tasks" + $subHead02 + $bodyAllTasksBk
     }
+  }
+  If ($exportAllTasksBkToCSV) {
+    $null = Export-Csv -InputObject $($arrAllTasksBk | select "VM Name","Job Name","Start Time","Stop Time","Duration (HH:MM:SS)","Avg Speed (MB/s)","Total (GB)","Processed (GB)","Data Read (GB)","Transferred (GB)","Status") -Append -Delimiter $setCSVDelimiter -Encoding UTF8 -NoTypeInformation -Path "$($baseFilenameCSV)_tasks.csv"
   }
 }
 
