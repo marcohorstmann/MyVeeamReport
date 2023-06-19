@@ -1,4 +1,4 @@
-#requires -Version 5.0
+﻿#requires -Version 5.0
 <#
 
     .SYNOPSIS
@@ -20,8 +20,8 @@
 
     .NOTES
     New Authors: Marco Horstmann, Bernhard Roth & Herbert Szumovski
-    Last Updated: 20 Feburary 2023
-    Version: 12.0.0.0
+    Last Updated: 19 June 2023
+    Version: 12.0.0.4
     New Authors: Marco Horstmann & Herbert Szumovski
     Last Updated: 23 March 2022
     Version: 11.0.1.4
@@ -40,7 +40,18 @@
 #endregion
 
 #region VersionInfo
-$MVRversion = "12.0.0.1"
+$MVRversion = "12.0.0.4"
+
+# Version 12.0.0.4 MH - 2023-06-19
+# Added code for CSV generation for tasks
+
+# Version 12.0.0.3 MH - 2023-02-24
+# Added code for Agent Backup Size
+
+# Version 12.0.0.2 MH - 2023-02-22
+# Added suggested code additions for Cloud Connect Repositories
+# (untested because I have no Cloud Connect Repo)
+
 
 # Version 12.0.0.1 MH - 2023-02-21
 # Changed tape code to show GFS media pools
@@ -443,7 +454,7 @@ $backupsBk = @($jobBackups | Where-Object {$_.JobType -eq "Backup"})
 # Get Backup Copy Job Backups
 $backupsBc = @($jobBackups | Where-Object {$_.JobType -eq "BackupSync"})
 # Get Agent Backup Job Backups
-$backupsEp = @($jobBackups | Where-Object {$_.JobType -eq "EndpointBackup"})
+$backupsEp = @($jobBackups | Where-Object {$_.JobType -eq "EndpointBackup" -or $_.JobType -eq "EpAgentBackup" -or $_.JobType -eq "EpAgentPolicy"})
 
 # Get all Media Pools
 $mediaPools = Get-VBRTapeMediaPool
@@ -1175,10 +1186,19 @@ function Get-BackupSize {
   Foreach ($backup in $backups) {
     $backupSize = 0
     $dataSize = 0
+    $logSize = 0
     $files = $backup.GetAllStorages()
     Foreach ($file in $Files) {
       $backupSize += [math]::Round([long]$file.Stats.BackupSize/1GB, 2)
       $dataSize += [math]::Round([long]$file.Stats.DataSize/1GB, 2)
+    }
+    #Added Log Backup Reporting
+    $childBackups = $backup.FindChildBackups()
+    if($childBackups.count -gt 0) {
+      $logFiles = $childBackups.GetAllStorages()
+      Foreach ($logFile in $logFiles) {
+        $logSize += [math]::Round([long]$logFile.Stats.BackupSize/1GB, 2)
+      }
     }
     $repo = If ($($script:repoList | Where-Object {$_.Id -eq $backup.RepositoryId}).Name) {
               $($script:repoList | Where-Object {$_.Id -eq $backup.RepositoryId}).Name
@@ -1191,6 +1211,7 @@ function Get-BackupSize {
       Repo = $repo
       DataSize = $dataSize
       BackupSize = $backupSize
+      LogSize = $logSize
     }
     $vbrMasterObj = New-Object -TypeName PSObject -Property $vbrMasterHash
     $outputObj += $vbrMasterObj
@@ -1576,7 +1597,8 @@ If ($showBackupSizeBk) {
       @{Name="VM Count"; Expression = {$_.VMCount}},
       @{Name="Repository"; Expression = {$_.Repo}},
       @{Name="Data Size (GB)"; Expression = {$_.DataSize}},
-      @{Name="Backup Size (GB)"; Expression = {$_.BackupSize}} | ConvertTo-HTML -Fragment
+      @{Name="Backup Size (GB)"; Expression = {$_.BackupSize}},
+      @{Name="Log Backup Size (GB)"; Expression = {$_.LogSize}} | ConvertTo-HTML -Fragment
     $bodyJobSizeBk = $subHead01 + "Backup Job Size" + $subHead02 + $bodyJobSizeBk
   }
 }
@@ -1590,7 +1612,8 @@ If ($showFileBackupSizeBk) {
       @{Name="VM Count"; Expression = {$_.VMCount}},
       @{Name="Repository"; Expression = {$_.Repo}},
       @{Name="Data Size (GB)"; Expression = {$_.DataSize}},
-      @{Name="Backup Size (GB)"; Expression = {$_.BackupSize}} | ConvertTo-HTML -Fragment
+      @{Name="Backup Size (GB)"; Expression = {$_.BackupSize}},
+      @{Name="Log Backup Size (GB)"; Expression = {$_.LogSize}} | ConvertTo-HTML -Fragment
     $bodyFileJobSizeBk = $subHead01 + "File Backup Job Size" + $subHead02 + $bodyFileJobSizeBk
   }
 }
@@ -1823,6 +1846,9 @@ If ($showAllTasksBk) {
       }
       $bodyAllTasksBk = $allTasksBkHead + "Backup Tasks" + $subHead02 + $bodyAllTasksBk
     }
+  }
+  If ($exportAllTasksBkToCSV) {
+    $null = Export-Csv -InputObject $($arrAllTasksBk | select "VM Name","Job Name","Start Time","Stop Time","Duration (HH:MM:SS)","Avg Speed (MB/s)","Total (GB)","Processed (GB)","Data Read (GB)","Transferred (GB)","Status") -Append -Delimiter $setCSVDelimiter -Encoding UTF8 -NoTypeInformation -Path "$($baseFilenameCSV)_tasks.csv"
   }
 }
 
@@ -3627,8 +3653,10 @@ If ($showBackupSizeEp) {
     $bodyJobSizeEp = Get-BackupSize -backups $backupsEp | Sort-Object JobName | Select-Object @{Name="Job Name"; Expression = {$_.JobName}},
       @{Name="VM Count"; Expression = {$_.VMCount}},
       @{Name="Repository"; Expression = {$_.Repo}},
-      @{Name="Data Size (GB)"; Expression = {$_.DataSize}},
-      @{Name="Backup Size (GB)"; Expression = {$_.BackupSize}} | ConvertTo-HTML -Fragment
+      <#@{Name="Data Size (GB)"; Expression = {$_.DataSize}},
+      @{Name="Backup Size (GB)"; Expression = {$_.BackupSize}},
+      #Agent Jobs seems to work different and this was a easy fix#>
+      @{Name="Backup Size (GB)"; Expression = {$_.LogSize}} | ConvertTo-HTML -Fragment
     $bodyJobSizeEp = $subHead01 + "Agent Backup Job Size" + $subHead02 + $bodyJobSizeEp
   }
 }
@@ -4060,6 +4088,7 @@ If ($showRepo) {
       @{Name="Status"; Expression = {
         If ($_.FreePercentage -lt $repoCritical) {"Critical"}
         ElseIf ($_.StorageTotal -eq 0 -and $_.rtype -ne "SAN Snapshot")  {"Warning"}
+        ElseIf ($_.StorageTotal -eq 0) {"NoData"}
         ElseIf ($_.FreePercentage -lt $repoWarn) {"Warning"}
         ElseIf ($_.FreePercentage -eq "Unknown") {"Unknown"}
         Else {"OK"}}
@@ -4069,7 +4098,7 @@ If ($showRepo) {
       $repoHead = $subHead01err
     } ElseIf ($arrRepo.status -match "Warning|Unknown") {
       $repoHead = $subHead01war
-    } ElseIf ($arrRepo.status -match "OK") {
+    } ElseIf ($arrRepo.status -match "OK|NoData") {
       $repoHead = $subHead01suc
     } Else {
       $repoHead = $subHead01

@@ -8,15 +8,16 @@
     Put here all your report customization settings.
 
     .NOTES
-    Author: Bernhard Roth
-    Last Updated: 15 November 2022
-    Version: 11.0.1.5
+    Authors: Bernhard Roth & Marco Horstmann
+    Last Updated: 19 June 2023
+    Version: 12.0.0.1
   
 #> 
 
 
 # VBR Server (Server Name, FQDN, IP or localhost)
 $vbrServer = $env:computername
+#$vbrServer = "lab-vbr01"
 # Report mode (RPO) - valid modes: any number of hours, Weekly or Monthly
 # 24, 48, "Weekly", "Monthly"
 $reportMode = 24
@@ -31,12 +32,25 @@ $oddColor = "#f0f0f0"
 
 # Location of Veeam Core dll  
 $VeeamCorePath = "C:\Program Files\Veeam\Backup and Replication\Backup\Veeam.Backup.Core.dll"
+#If you are connect remotely to VBR server you need to use another console.
+#$VeeamCorePath = "C:\Program Files\Veeam\Backup and Replication\Console\Veeam.Backup.Core.dll"
+
 # Save HTML output to a file
 $saveHTML = $true
 # HTML File output path and filename
 $pathHTML = ".\MyVeeamReport_$(Get-Date -format yyyyMMdd_HHmmss).htm"
 # Launch HTML file after creation
 $launchHTML = $true
+
+# Save CSV output to files
+$saveCSV = $true
+# CSV File output path and filename
+$baseFilenameCSV = ".\MyVeeamReport_$(Get-Date -format yyyyMMdd_HHmmss)"
+# Export All Tasks to CSV file
+$exportAllTasksBkToCSV = $true
+#Delimiter for CSV files
+$setCSVDelimiter = ";"
+
 
 # Email configuration
 $sendEmail = $false
