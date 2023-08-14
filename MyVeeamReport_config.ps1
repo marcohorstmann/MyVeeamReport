@@ -12,7 +12,41 @@
     Last Updated: 19 June 2023
     Version: 12.0.0.1
   
+	.Notes SureBackup update
+	Eamonn Deering
+	Last Updated: 13 Aug 2023
+	Version: 12.0.0.2
+	Added: $ReportHasDataEmail
+	Added: $ReportSBFailingOnly
+	Added: Text file import with exclusions
 #> 
+
+<# 
+	ED V12 11082023 Only email report if report has data other than a blank html page.
+	Experimental. 
+	Tested with: 
+	 "Get SureBackup Tasks with Warnings or Failures" using $showTaskWFSb and $ReportSBFailingOnly
+	 "Get VMs Missing Backups" using "$missingVMsEmail="SendEmailReport""
+
+	For SB or "VMs Missing" if the list has no failed VM's then don't send the email. 
+	 
+#>
+#The default is "$ReportHasDataEmail = $false" to ignore this setting.
+#$ReportHasDataEmail = $true
+$ReportHasDataEmail = $false
+
+<#
+
+	ED V11 and V12
+	Only report a SB fail VM if that same VM never passed in the time frame.
+	If your only interested in SB VM's that fail consistently over the time frame. 
+	Example. You test VM's every week. Your time span is one month. If a VM fails every week then send email/log a ticket. If a VM passes even once then don't send email. 
+	Use with all setting set to $false, "$showTaskWFSb = $true" and "$ReportSBFailingOnly = $true".
+
+#>
+#The default is "$ReportSBFailingOnly = $false" to ignore this setting.
+#$ReportSBFailingOnly = $true
+$ReportSBFailingOnly = $false
 
 
 # VBR Server (Server Name, FQDN, IP or localhost)
@@ -85,6 +119,19 @@ $showProtectedVMs = $true
 # Exclude VMs from Missing and Successful Backups sections
 # $excludevms = @("vm1","vm2","*_replica")
 $excludeVMs = @("")
+
+##ED added text file import with exclusions.  
+$ExcludeVMsSiteA = "C:\Scripts\Veeam\SiteA\Veeam-Exclude-VMs.txt"
+$ExcludeVMsSiteB = "C:\Scripts\Veeam\SiteB\Veeam-Exclude-VMs.txt"
+
+if(Test-Path $ExcludeVMsSiteA){
+$ExcludeVMs += Get-Content $ExcludeVMsSiteA}
+if(Test-Path $ExcludeVMsSiteB){
+$ExcludeVMs += Get-Content $ExcludeVMsSiteB}
+#$excludeVMs += @("*_replica*","*vLAB","*vLAN","*Template*")
+$excludeVMs = $excludeVMs| Sort-Object -Property @{Expression={$_.Trim()}} -Unique
+$excludeVMs
+
 # Exclude VMs from Missing and Successful Backups sections in the following (vCenter) folder(s)
 # $excludeFolder = @("folder1","folder2","*_testonly")
 $excludeFolder = @("")
@@ -284,33 +331,35 @@ $hideRunningSvc = $true
 # Show License expiry info
 $showLicExp = $true
 
-<# Start of unchanged reports since version 9.5.3
+
 # Show SureBackup Session Summary
-$showSummarySb = $false
+$showSummarySb = $true
 # Show SureBackup Job Status
-$showJobsSb = $false
+$showJobsSb = $true
 # Show all SureBackup Sessions within time frame ($reportMode)
-$showAllSessSb = $false
+$showAllSessSb = $true
 # Show all SureBackup Tasks from Sessions within time frame ($reportMode)
-$showAllTasksSb = $false
+$showAllTasksSb = $true
 # Show Running SureBackup Jobs
-$showRunningSb = $false
+$showRunningSb = $true
 # Show Running SureBackup Tasks
-$showRunningTasksSb = $false
+$showRunningTasksSb = $true
 # Show SureBackup Sessions w/Warnings or Failures within time frame ($reportMode)
-$showWarnFailSb = $false
+$showWarnFailSb = $true
 # Show SureBackup Tasks w/Warnings or Failures from Sessions within time frame ($reportMode)
-$showTaskWFSb = $false
+$showTaskWFSb = $true
 # Show Successful SureBackup Sessions within time frame ($reportMode)
-$showSuccessSb = $false
+$showSuccessSb = $true
 # Show Successful SureBackup Tasks from Sessions within time frame ($reportMode)
-$showTaskSuccessSb = $false
+$showTaskSuccessSb = $true
 # Only show last Session for each SureBackup Job
 $onlyLastSb = $false
 # Only report on the following SureBackup Job(s)
 #$surebJob = @("SureBackup Job 1","SureBackup Job 3","SureBackup Job *")
 $surebJob = @("")
 
+#Start of unchanged reports since version 9.5.3
+<#
 # Show Replication Session Summary
 $showSummaryRp = $false
 # Show Replication Job Status
