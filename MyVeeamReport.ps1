@@ -37,13 +37,13 @@
 	Eamonn Deering 
 	Last Updated: 14 Aug 2023
 	Version: 12.0.0.6
-	Added:	SureBackup fix up for V12
+	Added:	SureBackup fix up for V12 (New CLI commands don't work in V11)
 	Added:	Some minor bug fixes
 	Added:	Addisional cell coloring to highlight status mostly SureBackup 
 	Added: @{Name="ProtectedBySoftware"; Expression = {$_.ProtectedBySoftware}}, to Tapes section. 
-	Due to V12 code changes most of the SB updates doesent work in V11. 
+	Due to V12 code changes most of the SB cli updates do not work in V11. 
 	All SB sections look to be working now in V12.
-	
+Area with updates:	
 	Get Backup Job Status. Minor Fix up
 	Get SureBackup Job Status
 	Get Running SureBackup Jobs
@@ -55,8 +55,6 @@
 	Get Successful SureBackup Tasks
 	Email. added option for $ReportHasData
 	
-	14082023. V12 Version July 2023 version (latest)Bug. In V12 2 out of 4 VBR servers I tested gave this error. The ID would differ per server and Get-VBRSureBackupJob would terminate . Ticket logged with Veeam
-	Get-VBRSureBackupJob : Unable to get backup with id '648a8ab0-fba0-429d-bdce-55ed5a03f4f9'
 #>
 
 #region User-Variables
@@ -65,6 +63,10 @@
 
 #region VersionInfo
 $MVRversion = "12.0.0.5"
+
+# Version 12.0.0.5 ED 2023-08-19
+# Added SureBackup
+# Added SB Report that filters failed SB VM's and have not passed in the time span. 
 
 # Version 12.0.0.4 MH - 2023-06-19
 # Added code for CSV generation for tasks

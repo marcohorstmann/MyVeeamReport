@@ -18,11 +18,12 @@
 	Version: 12.0.0.2
 	Added: $ReportHasDataEmail
 	Added: $ReportSBFailingOnly
-	Added: Text file import with exclusions
+	Added: Text file import with VM exclusions
 #> 
 
 <# 
-	ED V12 11082023 Only email report if report has data other than a blank html page.
+	ED V12 11082023 
+	Only email report if report has data other than a blank html page.
 	Experimental. 
 	Tested with: 
 	 "Get SureBackup Tasks with Warnings or Failures" using $showTaskWFSb and $ReportSBFailingOnly
@@ -40,7 +41,7 @@ $ReportHasDataEmail = $false
 	ED V11 and V12
 	Only report a SB fail VM if that same VM never passed in the time frame.
 	If your only interested in SB VM's that fail consistently over the time frame. 
-	Example. You test VM's every week. Your time span is one month. If a VM fails every week then send email/log a ticket. If a VM passes even once then don't send email. 
+	Example. You SB test VM's every week. Your time span is one month. If a VM fails every week then send email/log a ticket. If a VM passes even once then don't send email. 
 	Use with all setting set to $false, "$showTaskWFSb = $true" and "$ReportSBFailingOnly = $true".
 
 #>
