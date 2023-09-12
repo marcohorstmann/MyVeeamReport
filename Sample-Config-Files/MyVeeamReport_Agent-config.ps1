@@ -73,9 +73,9 @@ $vbrServer = $env:computername
 #$vbrServer = "lab-vbr01"
 # Report mode (RPO) - valid modes: any number of hours, Weekly or Monthly
 # 24, 48, "Weekly", "Monthly"
-$reportMode = 24
+$reportMode = 780
 # Report Title
-$rptTitle = "My Veeam Report"
+$rptTitle = "My Veeam Report-Agent"
 # Show VBR Server name in report header
 $showVBR = $true
 # HTML Report Width (Percent)
@@ -88,25 +88,25 @@ $VeeamCorePath = "C:\Program Files\Veeam\Backup and Replication\Backup\Veeam.Bac
 #If you are connect remotely to VBR server you need to use another console.
 #$VeeamCorePath = "C:\Program Files\Veeam\Backup and Replication\Console\Veeam.Backup.Core.dll"
 
+
 # ED Moving reports into reports folder
 if(!(Test-Path ".\Reports")){
 	MD ".\Reports"}
-	
 # Save HTML output to a file
 $saveHTML = $true
 # HTML File output path and filename
-$pathHTML 			= ".\Reports\MyVeeamReport_$(Get-Date -format yyyyMMdd_HHmmss).htm"
+$pathHTML = ".\Reports\MyVeeamReport-Agent_$(Get-Date -format yyyyMMdd_HHmmss).htm"
 # Launch HTML file after creation
 $launchHTML = $true
 
 # Save CSV output to files
 $saveCSV = $true
 # CSV File output path and filename
-$baseFilenameCSV 	= ".\Reports\MyVeeamReport_$(Get-Date -format yyyyMMdd_HHmmss)"
+$baseFilenameCSV = ".\Reports\MyVeeamReport-Agent_$(Get-Date -format yyyyMMdd_HHmmss)"
 # Export All Tasks to CSV file
 $exportAllTasksBkToCSV = $true
 #Delimiter for CSV files
-$setCSVDelimiter = ";"
+$setCSVDelimiter = ","
 
 
 # Email configuration
@@ -131,14 +131,14 @@ $dtSubject = $false
 
 #--------------------- Disable reports you do not need by setting them to "$false" below:                                                                                        
 # Show VM Backup Protection Summary (across entire infrastructure)
-$showSummaryProtect = $true
+$showSummaryProtect = $false
 # Show VMs with No Successful Backups within RPO ($reportMode)
-$showUnprotectedVMs = $true
+$showUnprotectedVMs = $false
 # Show unprotected VMs for informational purposes only
-$showUnprotectedVMsInfo = $true
+$showUnprotectedVMsInfo = $false
 # Show VMs with Successful Backups within RPO ($reportMode)
 # Also shows VMs with Only Backups with Warnings within RPO ($reportMode)
-$showProtectedVMs = $true
+$showProtectedVMs = $false
 # Exclude VMs from Missing and Successful Backups sections
 # $excludevms = @("vm1","vm2","*_replica")
 $excludeVMs = @("")
@@ -153,12 +153,12 @@ if(Test-Path $ExcludeVMsSiteB){
 $ExcludeVMs += Get-Content $ExcludeVMsSiteB}
 #$excludeVMs += @("*_replica*","*vLAB","*vLAN","*Template*")
 $excludeVMs = $excludeVMs| Sort-Object -Property @{Expression={$_.Trim()}} -Unique
-Write-Host " Excluded VM's "
 $excludeVMs
 
 # Exclude VMs from Missing and Successful Backups sections in the following (vCenter) folder(s)
 # $excludeFolder = @("folder1","folder2","*_testonly")
-$excludeFolder = @("")
+#$excludeFolder = @("")
+$excludeFolder = @("DR-Testing","*Testing*","*Template*","*Powered-Off*","vm","vCLS","*To-Be-Deleted*","*vLab*")
 # Exclude VMs from Missing and Successful Backups sections in the following (vCenter) datacenter(s)
 # $excludeDC = @("dc1","dc2","dc*")
 $excludeDC = @("")
@@ -166,8 +166,9 @@ $excludeDC = @("")
 $excludeTemp = $false
 
 # Show VMs Backed Up by Multiple Jobs within time frame ($reportMode)
-$showMultiJobs = $true
+$showMultiJobs = $false
 
+<#
 # Show Backup Session Summary
 $showSummaryBk = $true
 # Show Backup Job Status
@@ -179,7 +180,7 @@ $showBackupSizeBk = $true
 # Show File Backup Job Size (total)
 $showFileBackupSizeBk = $true
 # Show detailed information for Backup Jobs/Sessions (Avg Speed, Total(GB), Processed(GB), Read(GB), Transferred(GB), Dedupe, Compression)
-$showDetailedBk = $true
+$showDetailedBk = $false
 # Show all Backup Sessions within time frame ($reportMode)
 $showAllSessBk = $true
 # Show all Backup Tasks from Sessions within time frame ($reportMode)
@@ -201,7 +202,9 @@ $onlyLastBk = $false
 # Only report on the following Backup Job(s)
 #$backupJob = @("Backup Job 1","Backup Job 3","Backup Job *")
 $backupJob = @("")
+#>
 
+<#
 # Show Running Restore VM Sessions
 $showRestoRunVM = $true
 # Show Completed Restore VM Sessions within time frame ($reportMode)
@@ -268,7 +271,9 @@ $onlyLastBc = $false
 # Only report on the following Backup Copy Job(s)
 #$bcopyJob = @("Backup Copy Job 1","Backup Copy Job 3","Backup Copy Job *")
 $bcopyJob = @("")
+#>
 
+<#
 # Show Tape Backup Session Summary
 $showSummaryTp = $true
 # Show Tape Backup Job Status
@@ -317,27 +322,31 @@ $showExpTpMp = $true
 $showExpTpVlt = $true
 # Show Tapes written to within time frame ($reportMode)
 $showTpWrt = $true
+#>
 
+#<#
 # Show Agent Backup Session Summary
-$showSummaryEp = $true
+$showSummaryEp 		= $true
 # Show Agent Backup Job Status
-$showJobsEp = $true
+$showJobsEp 		= $true
 # Show Agent Backup Job Size (total)
-$showBackupSizeEp = $true
+$showBackupSizeEp 	= $true
 # Show all Agent Backup Sessions within time frame ($reportMode)
-$showAllSessEp = $true
+$showAllSessEp 		= $true
 # Show Running Agent Backup jobs
-$showRunningEp = $true
+$showRunningEp 		= $true
 # Show Agent Backup Sessions w/Warnings or Failures within time frame ($reportMode)
-$showWarnFailEp = $true
+$showWarnFailEp 	= $true
 # Show Successful Agent Backup Sessions within time frame ($reportMode)
-$showSuccessEp = $true
+$showSuccessEp 		= $true
 # Only show last session for each Agent Backup Job
-$onlyLastEp = $false
+$onlyLastEp 		= $false
 # Only report on the following Agent Backup Job(s)
 #$epbJob = @("Agent Backup Job 1","Agent Backup Job 3","Agent Backup Job *")
 $epbJob = @("")
+#>
 
+<#
 # Show Configuration Backup Summary
 $showSummaryConfig = $true
 # Show Proxy Info
@@ -351,11 +360,12 @@ $showReplicaTarget = $true
 # Show Veeam Services Info (Windows Services)
 $showServices = $true
 # Show only Services that are NOT running
-$hideRunningSvc = $false
+$hideRunningSvc = $true
 # Show License expiry info
 $showLicExp = $true
+#>
 
-
+<#
 # Show SureBackup Session Summary
 $showSummarySb = $true
 # Show SureBackup Job Status
@@ -381,32 +391,34 @@ $onlyLastSb = $false
 # Only report on the following SureBackup Job(s)
 #$surebJob = @("SureBackup Job 1","SureBackup Job 3","SureBackup Job *")
 $surebJob = @("")
+#>
 
 #Start of unchanged reports since version 9.5.3
 # ED Note. Most of the following look to work in V11 and VBR v12.0.0.1420 as is.
+
 <#
 # Show Replication Session Summary
-$showSummaryRp = $false
+$showSummaryRp = $true
 # Show Replication Job Status
-$showJobsRp = $false
+$showJobsRp = $true
 # Show detailed information for Replication Jobs/Sessions (Avg Speed, Total(GB), Processed(GB), Read(GB), Transferred(GB), Dedupe, Compression)
-$showDetailedRp = $false
+$showDetailedRp = $true
 # Show all Replication Sessions within time frame ($reportMode)
-$showAllSessRp = $false
+$showAllSessRp = $true
 # Show all Replication Tasks from Sessions within time frame ($reportMode)
-$showAllTasksRp = $false
+$showAllTasksRp = $true
 # Show Running Replication Jobs
-$showRunningRp = $false
+$showRunningRp = $true
 # Show Running Replication Tasks
-$showRunningTasksRp = $false
+$showRunningTasksRp = $true
 # Show Replication Sessions w/Warnings or Failures within time frame ($reportMode)
-$showWarnFailRp = $false
+$showWarnFailRp = $true
 # Show Replication Tasks w/Warnings or Failures from Sessions within time frame ($reportMode)
-$showTaskWFRp = $false
+$showTaskWFRp = $true
 # Show Successful Replication Sessions within time frame ($reportMode)
-$showSuccessRp = $false
+$showSuccessRp =$true
 # Show Successful Replication Tasks from Sessions within time frame ($reportMode)
-$showTaskSuccessRp = $false
+$showTaskSuccessRp = $true
 # Only show last session for each Replication Job
 $onlyLastRp = $false
 # Only report on the following Replication Job(s)
@@ -414,12 +426,11 @@ $onlyLastRp = $false
 $replicaJob = @("")
 
 # Show Running Restore VM Sessions
-$showRestoRunVM = $false
+$showRestoRunVM = $true
 # Show Completed Restore VM Sessions within time frame ($reportMode)
-$showRestoreVM = $false
-
-end of excluded unchanged reports since version 9.5.3 #>
-
+$showRestoreVM = $true
+#end of excluded unchanged reports since version 9.5.3 
+#>
 
 # Highlighting Thresholds
 # Repository Free Space Remaining %

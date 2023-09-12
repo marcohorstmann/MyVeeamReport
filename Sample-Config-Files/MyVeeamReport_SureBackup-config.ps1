@@ -73,7 +73,7 @@ $vbrServer = $env:computername
 #$vbrServer = "lab-vbr01"
 # Report mode (RPO) - valid modes: any number of hours, Weekly or Monthly
 # 24, 48, "Weekly", "Monthly"
-$reportMode = 24
+$reportMode = "Monthly"
 # Report Title
 $rptTitle = "My Veeam Report"
 # Show VBR Server name in report header
@@ -88,25 +88,25 @@ $VeeamCorePath = "C:\Program Files\Veeam\Backup and Replication\Backup\Veeam.Bac
 #If you are connect remotely to VBR server you need to use another console.
 #$VeeamCorePath = "C:\Program Files\Veeam\Backup and Replication\Console\Veeam.Backup.Core.dll"
 
+
 # ED Moving reports into reports folder
 if(!(Test-Path ".\Reports")){
 	MD ".\Reports"}
-	
 # Save HTML output to a file
 $saveHTML = $true
 # HTML File output path and filename
-$pathHTML 			= ".\Reports\MyVeeamReport_$(Get-Date -format yyyyMMdd_HHmmss).htm"
+$pathHTML = ".\Reports\MyVeeamReport_$(Get-Date -format yyyyMMdd_HHmmss).htm"
 # Launch HTML file after creation
 $launchHTML = $true
 
 # Save CSV output to files
 $saveCSV = $true
 # CSV File output path and filename
-$baseFilenameCSV 	= ".\Reports\MyVeeamReport_$(Get-Date -format yyyyMMdd_HHmmss)"
+$baseFilenameCSV = ".\Reports\MyVeeamReport_$(Get-Date -format yyyyMMdd_HHmmss)"
 # Export All Tasks to CSV file
 $exportAllTasksBkToCSV = $true
 #Delimiter for CSV files
-$setCSVDelimiter = ";"
+$setCSVDelimiter = ","
 
 
 # Email configuration
@@ -131,14 +131,14 @@ $dtSubject = $false
 
 #--------------------- Disable reports you do not need by setting them to "$false" below:                                                                                        
 # Show VM Backup Protection Summary (across entire infrastructure)
-$showSummaryProtect = $true
+$showSummaryProtect = $false
 # Show VMs with No Successful Backups within RPO ($reportMode)
-$showUnprotectedVMs = $true
+$showUnprotectedVMs = $false
 # Show unprotected VMs for informational purposes only
-$showUnprotectedVMsInfo = $true
+$showUnprotectedVMsInfo = $false
 # Show VMs with Successful Backups within RPO ($reportMode)
 # Also shows VMs with Only Backups with Warnings within RPO ($reportMode)
-$showProtectedVMs = $true
+$showProtectedVMs = $false
 # Exclude VMs from Missing and Successful Backups sections
 # $excludevms = @("vm1","vm2","*_replica")
 $excludeVMs = @("")
@@ -153,12 +153,12 @@ if(Test-Path $ExcludeVMsSiteB){
 $ExcludeVMs += Get-Content $ExcludeVMsSiteB}
 #$excludeVMs += @("*_replica*","*vLAB","*vLAN","*Template*")
 $excludeVMs = $excludeVMs| Sort-Object -Property @{Expression={$_.Trim()}} -Unique
-Write-Host " Excluded VM's "
 $excludeVMs
 
 # Exclude VMs from Missing and Successful Backups sections in the following (vCenter) folder(s)
 # $excludeFolder = @("folder1","folder2","*_testonly")
-$excludeFolder = @("")
+#$excludeFolder = @("")
+$excludeFolder = @("DR-Testing","*Testing*","*Template*","*Powered-Off*","vm","vCLS","*To-Be-Deleted*","*vLab*")
 # Exclude VMs from Missing and Successful Backups sections in the following (vCenter) datacenter(s)
 # $excludeDC = @("dc1","dc2","dc*")
 $excludeDC = @("")
@@ -166,20 +166,21 @@ $excludeDC = @("")
 $excludeTemp = $false
 
 # Show VMs Backed Up by Multiple Jobs within time frame ($reportMode)
-$showMultiJobs = $true
+$showMultiJobs = $false
 
+<#
 # Show Backup Session Summary
-$showSummaryBk = $true
+$showSummaryBk = $false
 # Show Backup Job Status
-$showJobsBk = $true
+$showJobsBk = $false
 # Show File Backup Job Status
-$showFileJobsBk = $true
+$showFileJobsBk = $false
 # Show Backup Job Size (total)
-$showBackupSizeBk = $true
+$showBackupSizeBk = $false
 # Show File Backup Job Size (total)
-$showFileBackupSizeBk = $true
+$showFileBackupSizeBk = $false
 # Show detailed information for Backup Jobs/Sessions (Avg Speed, Total(GB), Processed(GB), Read(GB), Transferred(GB), Dedupe, Compression)
-$showDetailedBk = $true
+$showDetailedBk = $false
 # Show all Backup Sessions within time frame ($reportMode)
 $showAllSessBk = $true
 # Show all Backup Tasks from Sessions within time frame ($reportMode)
@@ -351,10 +352,11 @@ $showReplicaTarget = $true
 # Show Veeam Services Info (Windows Services)
 $showServices = $true
 # Show only Services that are NOT running
-$hideRunningSvc = $false
+$hideRunningSvc = $true
 # Show License expiry info
 $showLicExp = $true
 
+#>
 
 # Show SureBackup Session Summary
 $showSummarySb = $true

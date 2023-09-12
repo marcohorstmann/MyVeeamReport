@@ -16,6 +16,20 @@
 
     .EXAMPLE
     .\MyVeeamReport.ps1
+	
+	. .\MyVeeamReport.ps1 -LoadConfig '.\Sample-Config-Files\MyVeeamReport_Backup-config.ps1'
+	. .\MyVeeamReport.ps1 -LoadConfig '.\Sample-Config-Files\MyVeeamReport_BackupCopy-config.ps1'
+	. .\MyVeeamReport.ps1 -LoadConfig '.\Sample-Config-Files\MyVeeamReport_Agent-config.ps1'
+	. .\MyVeeamReport.ps1 -LoadConfig '.\Sample-Config-Files\MyVeeamReport_Agent.ps1'
+	. .\MyVeeamReport.ps1 -LoadConfig '.\Sample-Config-Files\MyVeeamReport_Tape-config.ps1'
+	. .\MyVeeamReport.ps1 -LoadConfig '.\Sample-Config-Files\MyVeeamReport_SureBackup-config.ps1'
+	. .\MyVeeamReport.ps1 -LoadConfig '.\Sample-Config-Files\MyVeeamReport_Surebackup-VMs-Not-Passed-in-2-Months-Failed Policy Report-config.ps1'
+	. .\MyVeeamReport.ps1 -LoadConfig '.\Sample-Config-Files\MyVeeamReport_Surebackup-VMs-Passed-Two-Months-config.ps1'
+	. .\MyVeeamReport.ps1 -LoadConfig '.\Sample-Config-Files\VeeamReport-Show-Unprotected-VMs-Over-Last-32-Days-config.ps1'
+	
+	From a dos batch file you might use.
+	powershell -ExecutionPolicy Bypass -command "& '.\MyVeeamReport.ps1' -LoadConfig 'Sample-Config-Files\MyVeeamReport_Backup-config.ps1'"
+	
     Run script from (an elevated) PowerShell console
 
     .NOTES
@@ -32,15 +46,106 @@
     Requires:
     Veeam Backup & Replication v11.0 or later (full or console install)
     VMware Infrastructure
+#>	
 
+<#
+	.UPDATES
+	Eamonn Deering 
+	Last Updated: Aug 2023
+	Version: 12.0.0.5
+	Added:	SureBackup fix up for V12 (Newer CLI commands don't work in V11) 
+	Added:	Some minor bug fixes
+	Added:	Additional header colouring to highlight status. 
+	Added: @{Name="ProtectedBySoftware"; Expression = {$_.ProtectedBySoftware}}, to Tapes section. 
+	All SB sections look to be working now in V12.
+Areas updated:	
+	Get Backup Job Status. Minor Fix up
+	Get SureBackup Job Status
+	Get Running SureBackup Jobs
+	Gather all SureBackup Tasks from Sessions within timeframe.
+	Get SureBackup Tasks
+	Get Running SureBackup Tasks
+	New section $ReportSBFailingOnly
+	Get SureBackup Tasks with Warnings or Failures
+	Get Successful SureBackup Tasks
+	Email. added option for $ReportHasData
+	
+	Eamonn Deering 
+	Last Updated: 20 Aug 2023
+	Version: 12.0.0.6
+	Brought back compatibility for SureBackup reports in Veeam 11. (Newer V12 CLI commands don't work in V11 so keeping both version of code for V11/12 compatibility)
+	Add option to call the config file from the command line. No need to maintain/amend MyVeeamReport.ps1 for each upgrade and/or each config file.  
+	Compared original script version 9.5.3-MyVeeamreport on Veeam 11a to script version 12.0.0.6 on Veaam 12 July 2023 build. Each region with Data tallied correctly.
+	
+	Eamonn Deering 
+	Last Updated: 28 Aug 2023
+	Version: 12.0.0.7
+	Proxy check now includes port 6061 and 6062
+	
+		Eamonn Deering 
+	Last Updated: 11 Sep 2023
+	Version: 12.0.0.9
+	Correcting some of my own bugs. 
+	Tidy up
+	Adding example config files 
+	Compaired result with 9.5.3, 12.0.0.4 and 12.0.0.9. No issues noted.
+	Change colour $subHead01 from a light grey #F3F4F4 to a deeper grey #C2C3C3.  
+	Na that doesent Work
+	Changed $subHead01  to $subHead01suc (Green). Looks great ;)
+	With Proxies and repos offline timeouts where over 6sec fore each. The script session screen showes all the red warnings. Speeded up detections of offline Proixes and repo's and masked most of the red warnings.
+	
+	Eamonn Deering 
+	Last Updated: 12 Sep 2023
+	Version: 12.0.0.11
+	Fixing Agent Job size to work in V11 and V12 like the original V9.
+	Split out Agent Types
 #>
 
+
+	#	ED 21 Aug 2023
+	#	Option to load a config file from the command line. Never again have to modify MyVeeamReport.ps1 when upgrading past version 12.0.0.6.
+	
+param(
+  [parameter(Mandatory=$false)]
+  [string]$LoadConfig
+)
+
+	#	ED 21 Aug 2023
+	#	When testing a script from the same powershell session its a good idea to clear out old variables. 
+	#	Clear all variables stored in the session, clear out any module loaded by our script, clear out Error buffer
+	#	https://pscustomobject.github.io/powershell/howto/PowerShell-ISE-Clear-Variables/
+	Remove-Variable * -Exclude LoadConfig -ErrorAction SilentlyContinue;
+	#	
+	#Remove-Variable * -Exclude param, Mandatory, LoadConfig -ErrorAction SilentlyContinue; $error.Clear(); 
+
 #region User-Variables
+If ([string]$LoadConfig -ne ""){
+	If(!(test-path $LoadConfig)){
+	Write-Host "Can't find custom command line config file " $LoadConfig
+	Write-Host "Soft Exit in 5 sec"
+	Sleep 5
+	#Write-Host Script End
+	Exit 5}Else{
+	Write-Host "Loading custom command line config file "$LoadConfig
+. $LoadConfig}}Else{
+	Write-Host "Loading default config file MyVeeamReport_config.ps1"
 . .\MyVeeamReport_config.ps1
+}
 #endregion
 
 #region VersionInfo
-$MVRversion = "12.0.0.4"
+$MVRversion = "12.0.0.11"
+
+# Version 12.0.0.6 to 12.0.0.11 ED  - 2023-09-12
+# Fixed CSV output to file (was showing blank)
+# Fixed Agent Backup Size for Veeam 11 and 12
+# 
+# Added SureBackup for V11 and V12
+# Added SB Report that filters failed SB VM's and have not passed in the time span. 
+# Added Call config file from command line.
+# Added sample config files
+# Added Header colour to more headers 
+# Added additional proxy port testing to complement ping 
 
 # Version 12.0.0.4 MH - 2023-06-19
 # Added code for CSV generation for tasks
@@ -347,6 +452,44 @@ $MVRversion = "12.0.0.4"
 # Minor performance tweaks
 #endregion
 
+# ED 20/08/2023 Moved Get-VeeamVersion to top of script. 
+# If running SureBackup reports select the code for V11 or V12 thus helping to make the script V11 and V12 completable. 
+
+Function Get-VeeamVersion {
+  Try {
+    $veeamCore = Get-Item -Path $veeamCorePath
+    $VeeamVersion = [single]($veeamCore.VersionInfo.ProductVersion).substring(0,4)
+    $productVersion=[string]$veeamCore.VersionInfo.ProductVersion
+    $productHotfix=[string]$veeamCore.VersionInfo.Comments
+    Write-Host "Found Veeam Version: $productVersion $productHotfix"
+    $objectVersion = New-Object -TypeName PSObject -Property @{
+          VeeamVersion = $VeeamVersion
+          productVersion = $productVersion
+          productHotfix = $productHotfix
+    }
+
+    Return $objectVersion
+  } Catch {
+#	ED 	  Write-Error doesn't work well with PS V5.
+    #Write-Error "Unable to Locate Veeam Core, check path - $veeamCorePath" -ForegroundColor Red
+	Write-Host "Unable to Locate Veeam Core, check path - $veeamCorePath" -ForegroundColor Red
+	Write-Host "Soft Exit in 5 sec"
+	Sleep 5
+    Break
+  }
+}
+
+# Get Veeam Version
+$objectVersion = Get-VeeamVersion
+
+If ($objectVersion.VeeamVersion -lt 11.0) {
+  Write-Host "Script requires VBR v11.0 or higher" -ForegroundColor Red
+  Write-Host "Script will exit in 5 sec."
+  Write-Host "Soft Exit in 5 sec"
+	Sleep 5
+    Break
+}
+
 #region Connect
 
 
@@ -359,21 +502,26 @@ If ($OpenConnection -ne $vbrServer){
     Connect-VBRServer -server $vbrServer -ErrorAction Stop
   } Catch {
     Write-Host "Unable to connect to VBR server - $vbrServer" -ForegroundColor Red
-    exit
+    Write-Host "Soft Exit in 5 sec"
+	Sleep 5
+	Break
   }
 }
+#ED 12/08/2023
+Write-Host "Connected to VBR server - $vbrServer"
 #endregion
 
 #region NonUser-Variables
 # Get all Backup/Backup Copy/Replica Jobs
 $allJobs = @()
+#ED V11 + V12  added $showJobsSb
 If ($showSummaryBk + $showJobsBk + $showFileJobsBk + $showAllSessBk + $showAllTasksBk + $showRunningBk +
   $showRunningTasksBk + $showWarnFailBk + $showTaskWFBk + $showSuccessBk + $showTaskSuccessBk +
   $showSummaryRp + $showJobsRp + $showAllSessRp + $showAllTasksRp + $showRunningRp +
   $showRunningTasksRp + $showWarnFailRp + $showTaskWFRp + $showSuccessRp + $showTaskSuccessRp +
   $showSummaryBc + $showJobsBc + $showAllSessBc + $showAllTasksBc + $showIdleBc +
   $showPendingTasksBc + $showRunningBc + $showRunningTasksBc + $showWarnFailBc +
-  $showTaskWFBc + $showSuccessBc + $showTaskSuccessBc) {
+  $showTaskWFBc + $showSuccessBc + $showTaskSuccessBc + $showJobsSb) {
   $allJobs = Get-VBRJob -WarningAction SilentlyContinue
 }
 
@@ -405,13 +553,19 @@ $allJobsSb = @()
 If ($showSummarySb + $showJobsSb + $showAllSessSb + $showAllTasksSb +
   $showRunningSb + $showRunningTasksSb + $showWarnFailSb + $showTaskWFSb +
   $showSuccessSb + $showTaskSuccessSb) {
-  $allJobsSb = @(Get-VSBJob)
-}
+	  If ($objectVersion.VeeamVersion -lt 12.0) {
+#	ED Working V11
+	  $allJobsSb = @(Get-VSBJob)
+	  }Else{
+#	ED Working V12 new code 
+	$allJobsSb = @(Get-VBRSureBackupJob)
+	  }
+  }
 
 # Get all Backup/Backup Copy/Replica Sessions
 $allSess = @()
 If ($allJobs) {
-  $allSess = Get-VBRBackupSession
+  $allSess = Get-VBRBackupSession |Sort JobType, Name, Endtime
 }
 # Get all File / NAS Backup Sessions
 $allFileSess = @()
@@ -435,13 +589,22 @@ If ($allJobsTp) {
 }
 # Get all Agent Backup Sessions
 $allSessEp = @()
+$allSessEpX = @()
+# ED. Minor bug in V11. Get-VBRComputerBackupJobSession can double up on .JobID. Session count in "Agent Backup Results Summary" can be over twice the total but "Agent Backup Sessions" reports correctly. 
+# The following fix works in V11 and V12. Verified on three systems. One showed 540 before and 211 after . 211 was correct. 
 If ($allJobsEp) {
-  $allSessEp = Get-VBRComputerBackupJobSession
+  $allSessEpX = Get-VBRComputerBackupJobSession 
+  ForEach ($Job in $allJobsEp){$allSessEp+= $allSessEpX | Where-Object {$_.JobId -eq $job.Id}}
 }
+#$allSessEp.Count
 # Get all SureBackup Sessions
 $allSessSb = @()
 If ($allJobsSb) {
-  $allSessSb = Get-VSBSession
+	If ($objectVersion.VeeamVersion -lt 12.0) {
+#	ED V11
+	$allSessSb = Get-VSBSession}Else{
+# 	ED V12 New code
+	$allSessSb = Get-VBRSureBackupSession}
 }
 
 # Get all Backups
@@ -453,8 +616,16 @@ If ($showBackupSizeBk + $showBackupSizeBc + $showBackupSizeEp) {
 $backupsBk = @($jobBackups | Where-Object {$_.JobType -eq "Backup"})
 # Get Backup Copy Job Backups
 $backupsBc = @($jobBackups | Where-Object {$_.JobType -eq "BackupSync"})
+
 # Get Agent Backup Job Backups
-$backupsEp = @($jobBackups | Where-Object {$_.JobType -eq "EndpointBackup" -or $_.JobType -eq "EpAgentBackup" -or $_.JobType -eq "EpAgentPolicy"})
+#ED Sep 2023. Adding EpAgentManagement as seen in V11, it looks to be the replacement of "EndpointBackup" in Veeam 9. "EpAgentBackup" gives mixed results between V11 and V12 and is a little odd when testing a V11 BCO in V12. 
+#$backupsEp = @($jobBackups | Where-Object {$_.JobType -eq "EndpointBackup" -or $_.JobType -eq "EpAgentPolicy" -or $_.JobType -eq "EpAgentManagement" -or $_.JobType -eq "EpAgentBackup"})
+#$backupsEp = @($jobBackups | ?{$_.TypeToString -eq "Windows Agent Backup"})
+#$backupsEp = $backupsEp | Sort JobType, JobName
+# ED Separate out the two
+$backupsEp 		= @($jobBackups | Where-Object {$_.JobType -eq "EndpointBackup" -or $_.JobType -eq "EpAgentManagement" })
+$backupsEpOther = @($jobBackups | Where-Object {$_.JobType -eq "EpAgentPolicy" -or $_.JobType -eq "EpAgentBackup"})
+$backupsEpAll = $backupsEp + $backupsEpOther
 
 # Get all Media Pools
 $mediaPools = Get-VBRTapeMediaPool
@@ -673,14 +844,15 @@ If ($null -ne $epbJob -and $epbJob -ne "") {
   $backupsEpTmp = @()
   Foreach ($eJob in $epbJob) {
     $allJobsEpTmp += $allJobsEp | Where-Object {$_.Name -like $eJob}
-    $backupsEpTmp += $backupsEp | Where-Object {$_.JobName -like $eJob}
+    #ED Separating out Agent Job Types. $backupsEp to $backupsEpAll
+	$backupsEpTmp += $backupsEpAll | Where-Object {$_.JobName -like $eJob}
   }
   Foreach ($job in $allJobsEpTmp) {
     $sessListEpTmp += $sessListEp | Where-Object {$_.JobId -eq $job.Id}
   }
   $allJobsEp = $allJobsEpTmp | Sort-Object Id -Unique
   $sessListEp = $sessListEpTmp | Sort-Object Id -Unique
-  $backupsEp = $backupsEpTmp | Sort-Object Id -Unique
+  $backupsEpAll = $backupsEpTmp | Sort-Object Id -Unique
 }
 If ($onlyLastEp) {
   $tempSessListEp = $sessListEp
@@ -755,6 +927,7 @@ If ($dtSubject) {
 #endregion
 
 #region Functions
+# ED 11 Sep 2023 Remove screen red errors if proxy offline.
 
 Function Get-VBRProxyInfo {
   [CmdletBinding()]
@@ -770,15 +943,15 @@ Function Get-VBRProxyInfo {
       If ($inputObj.Host.Name -match $isIP) {
         $IPv4 = $inputObj.Host.Name
       } Else {
-        $DNS = [Net.DNS]::GetHostEntry("$($inputObj.Host.Name)")
-        $IPv4 = ($DNS.get_AddressList() | Where-Object {$_.AddressFamily -eq "InterNetwork"} | Select-Object -First 1).IPAddressToString
+		try {$DNS 	= [Net.DNS]::GetHostEntry("$($inputObj.Host.Name)")}catch{}
+        try {$IPv4 	= ($DNS.get_AddressList() | Where-Object {$_.AddressFamily -eq "InterNetwork"} | Select-Object -First 1).IPAddressToString}catch{}
       }
-      $pinginfo = $ping.send("$($IPv4)")
+      try {$pinginfo = $ping.send("$($IPv4)",1000)}catch{}
       If ($pinginfo.Status -eq "Success") {
-        $hostAlive = "Alive"
+        $hostAlive = "True"
         $response = $pinginfo.RoundtripTime
       } Else {
-        $hostAlive = "Dead"
+        $hostAlive = "False"
         $response = $null
       }
       If ($inputObj.IsDisabled) {
@@ -819,6 +992,69 @@ Function Get-VBRProxyInfo {
   }
 }
 
+
+
+# ED Most proxy's will be on a fast LAN so lets do a fast timeout check on the proxy ports.
+# https://copdips.com/2019/09/fast-tcp-port-check-in-powershell.html
+# Complement this with the ping test to see if Proxy is alive.
+
+function Test-Port {
+    [CmdletBinding()]
+    param (
+        [Parameter(ValueFromPipeline = $true, HelpMessage = 'Could be suffixed by :Port')]
+        [String[]]$ComputerName,
+
+        [Parameter(HelpMessage = 'Will be ignored if the port is given in the param ComputerName')]
+        [Int]$Port = 5985,
+
+        [Parameter(HelpMessage = 'Timeout in millisecond. Increase the value if you want to test Internet resources.')]
+        [Int]$Timeout = 1000
+    )
+
+    begin {
+        $result = [System.Collections.ArrayList]::new()
+    }
+
+    process {
+        foreach ($originalComputerName in $ComputerName) {
+            $remoteInfo = $originalComputerName.Split(":")
+            if ($remoteInfo.count -eq 1) {
+                # In case $ComputerName in the form of 'host'
+                $remoteHostname = $originalComputerName
+                $remotePort = $Port
+            } elseif ($remoteInfo.count -eq 2) {
+                # In case $ComputerName in the form of 'host:port',
+                # we often get host and port to check in this form.
+                $remoteHostname = $remoteInfo[0]
+                $remotePort = $remoteInfo[1]
+            } else {
+                $msg = "Got unknown format for the parameter ComputerName: " `
+                    + "[$originalComputerName]. " `
+                    + "The allowed formats is [hostname] or [hostname:port]."
+                Write-Error $msg
+                return
+            }
+
+            $tcpClient = New-Object System.Net.Sockets.TcpClient
+            $portOpened = $tcpClient.ConnectAsync($remoteHostname, $remotePort).Wait($Timeout) 
+			
+            $null = $result.Add([PSCustomObject]@{
+                RemoteHostname       = $remoteHostname
+                RemotePort           = $remotePort
+                PortOpened           = $portOpened
+                TimeoutInMillisecond = $Timeout
+                SourceHostname       = $env:COMPUTERNAME
+                OriginalComputerName = $originalComputerName
+                })
+        }
+    }
+
+    end {
+        return $result
+    }
+}
+
+#ED 11 Sep 2023 Note. If a repo is offline we see a 6 sec delay around SyncSpaceInfoToDb. Bypassing using IsUnavailable -eq "False
 Function Get-VBRRepoInfo {
   [CmdletBinding()]
   param (
@@ -846,7 +1082,9 @@ Function Get-VBRRepoInfo {
   Process {
     Foreach ($r in $Repository) {
       # Refresh Repository Size Info
-      [Veeam.Backup.Core.CBackupRepositoryEx]::SyncSpaceInfoToDb($r, $true)
+If ([String]$r.IsUnavailable -eq "False"){   
+   [Veeam.Backup.Core.CBackupRepositoryEx]::SyncSpaceInfoToDb($r, $true)
+  }
       $rType = switch ($r.Type) {
         "WinLocal" {"Windows Local"}
         "LinuxLocal" {"Linux Local"}
@@ -896,7 +1134,10 @@ Function Get-VBRSORepoInfo {
       ForEach ($rp in $rs.Extent) {
         $r = $rp.Repository
         # Refresh Repository Size Info
-        [Veeam.Backup.Core.CBackupRepositoryEx]::SyncSpaceInfoToDb($r, $true)
+      #try {  
+	  If ([String]$rs.IsUnavailable -eq "False"){  
+	  [Veeam.Backup.Core.CBackupRepositoryEx]::SyncSpaceInfoToDb($r, $true)}
+	  #}catch{}
 		$rBackupSize = [Veeam.Backup.Core.CBackupRepository]::GetRepositoryBackupsSize($r.Id.Guid)
         $rType = switch ($r.Type) {
           "WinLocal" {"Windows Local"}
@@ -992,25 +1233,7 @@ Function Get-VBRReplicaTarget {
   }
 }
 
-Function Get-VeeamVersion {
-  Try {
-    $veeamCore = Get-Item -Path $veeamCorePath
-    $VeeamVersion = [single]($veeamCore.VersionInfo.ProductVersion).substring(0,4)
-    $productVersion=[string]$veeamCore.VersionInfo.ProductVersion
-    $productHotfix=[string]$veeamCore.VersionInfo.Comments
-    Write-Host "Found Veeam Version: $productVersion $productHotfix"
-    $objectVersion = New-Object -TypeName PSObject -Property @{
-          VeeamVersion = $VeeamVersion
-          productVersion = $productVersion
-          productHotfix = $productHotfix
-    }
-
-    Return $objectVersion
-  } Catch {
-    Write-Error "Unable to Locate Veeam Core, check path - $veeamCorePath" -ForegroundColor Red
-    exit
-  }
-}
+# ED 20082023 Moving Get-VeeamVersion to top of script
 
 Function Get-VeeamSupportDate {
     # Query for license info
@@ -1205,9 +1428,11 @@ function Get-BackupSize {
             } Else {
               $($script:repoListSo | Where-Object {$_.Id -eq $backup.RepositoryId}).Name
             }
-    $vbrMasterHash = @{
+#ED added JobType to help with Agent job size reports.    
+   $vbrMasterHash = @{
       JobName = $backup.JobName
       VMCount = $backup.VmCount
+	  JobType = $backup.JobType
       Repo = $repo
       DataSize = $dataSize
       BackupSize = $backupSize
@@ -1259,13 +1484,8 @@ Function Get-MultiJob {
 #endregion
 
 #region Report
-# Get Veeam Version
-$objectVersion = Get-VeeamVersion
 
-If ($objectVersion.VeeamVersion -lt 11.0) {
-  Write-Host "Script requires VBR v11.0 or higher" -ForegroundColor Red
-  exit
-}
+# Get Veeam Version ED 20082023. Moved to top. 
 
 
 Write-Host "Generating reports, please be patient ..."
@@ -1308,11 +1528,11 @@ $bodyTop = @"
               </tr>
           </table>
 "@
-
+# ED Sep 2023. Changing default colour to Green 
 $subHead01 = @"
 <table>
                 <tr>
-                    <td style="height: 35px;background-color: #f3f4f4;color: #626365;font-size: 16px;padding: 5px 0 0 15px;border-top: 5px solid white;border-bottom: none;">
+                    <td style="height: 35px;background-color: #00b050;color: #ffffff;font-size: 16px;padding: 5px 0 0 15px;border-top: 5px solid white;border-bottom: none;">
 "@
 
 $subHead01suc = @"
@@ -1377,7 +1597,9 @@ ForEach ($VM in $missingVMs) {
     $VM.StopTime = ""
   }
 }
-# VMs Successfuly Backed Up
+
+
+# VMs Successfully Backed Up
 $successVMs = @($vmStatus | Where-Object {$_.Status -eq "Success"})
 # VMs Backed Up w/Warning
 $warnVMs = @($vmStatus | Where-Object {$_.Status -eq "Warning"})
@@ -1423,9 +1645,11 @@ If ($showSummaryProtect) {
 #endregion
 
 #region Get VMs Missing Backups
-$bodyMissing = $null
+$bodyMissing 		= 	$null
+$missingVMsEmail	=	$null
 If ($showUnprotectedVMs -Or $showUnprotectedVMsInfo) {
   If ($missingVMs.count -gt 0) {
+	  $missingVMsEmail="SendEmailReport"
 
     If ($showUnprotectedVMsInfo) {
       $missingVMs = $missingVMs | Sort-Object vCenter, Datacenter, Cluster, Name | Select-Object Name, vCenter, Datacenter, Cluster, Folder,
@@ -1450,7 +1674,7 @@ If ($showProtectedVMs) {
   }
 }
 
-# Get VMs Successfuly Backed Up
+# Get VMs Successfully Backed Up
 $bodySuccess = $null
 If ($showProtectedVMs) {
   If ($successVMs.Count -gt 0) {
@@ -1509,14 +1733,16 @@ If ($showSummaryBk) {
 }
 
 # Get Backup Job Status
+#ED V12 Aug 2023 Colour and additions
 $bodyJobsBk = $null
+ $arrayJobsSBk = @()
 If ($showJobsBk) {
   If ($allJobsBk.count -gt 0) {
-    $bodyJobsBk = @()
+   
     Foreach($bkJob in $allJobsBk) {
-      $bodyJobsBk += $bkJob | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
+      $arrayJobsSBk += $bkJob | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="Enabled"; Expression = {$_.IsScheduleEnabled}},
-        @{Name="Status"; Expression = {
+		@{Name="Status"; Expression = {
           If ($bkJob.IsRunning) {
             $currentSess = $runningSessionsBk | Where-Object {$_.JobName -eq $bkJob.Name}
             $csessPercent = $currentSess.Progress.Percents
@@ -1534,8 +1760,11 @@ If ($showJobsBk) {
             $($repoListSo | Where-Object {$_.Id -eq $BkJob.Info.TargetRepositoryId}).Name
           }
         }},
+#	ED V12 adding last run. 
+		 @{Name="Last Run"; Expression = {$_.LatestRunLocal}},
         @{Name="Next Run"; Expression = {
           If ($_.IsScheduleEnabled -eq $false) {"<Disabled>"}
+		  ElseIf ($_.IsScheduleEnabled -eq $False) {"<Not scheduled>"}
           ElseIf ($_.Options.JobOptions.RunManually) {"<not scheduled>"}
           ElseIf ($_.ScheduleOptions.IsContinuous) {"<Continuous>"}
 		  ElseIf ($_.ScheduleOptions.OptionsScheduleAfterJob.IsEnabled) {"After [" + $(($allJobs + $allJobsTp) | Where-Object {$_.Id -eq $bkJob.Info.ParentScheduleId}).Name + "]"}
@@ -1543,18 +1772,29 @@ If ($showJobsBk) {
         }},
         @{Name="Last Result"; Expression = {If ($_.Info.LatestStatus -eq "None"){"Unknown"}Else{$_.Info.LatestStatus}}}
     }
-    $bodyJobsBk = $bodyJobsBk | Sort-Object "Next Run" | ConvertTo-HTML -Fragment
-    $bodyJobsBk = $subHead01 + "Backup Job Status" + $subHead02 + $bodyJobsBk
+	    $bodyJobsBk = $arrayJobsSBk | Sort-Object "Next Run" | ConvertTo-HTML -Fragment
+	If ($arrayJobsSBk."Last Result" -match "Failed") {
+        $JobsBkSHead = $subHead01err
+      } ElseIf ($arrayJobsSBk."Last Result" -match "Warning") {
+         $JobsBkSHead = $subHead01war
+      } ElseIf ($arrayJobsSBk."Last Result" -match "Success") {
+        $JobsBkSHead = $subHead01suc
+      } Else {
+         $JobsBkSHead = $subHead01
+      }
+    $bodyJobsBk =  $JobsBkSHead + "Backup Job Status" + $subHead02 + $bodyJobsBk
   }
 }
 
-# Get Backup Job Status Begin
-$bodyFileJobsBk = $null
+# Get File Backup Job Status Begin
+# ED Add colour
+$bodyFileJobsBk 	= $null
+$arrayFileJobsBk 	= @()
 If ($showFileJobsBk) {
   If ($allFileJobsBk.count -gt 0) {
-    $bodyFileJobsBk = @()
+   # $bodyFileJobsBk = @()
     Foreach($bkJob in $allFileJobsBk) {
-      $bodyFileJobsBk += $bkJob | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
+      $arrayFileJobsBk += $bkJob | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="Enabled"; Expression = {$_.IsScheduleEnabled}},
         @{Name="Status"; Expression = {
           If ($bkJob.IsRunning) {
@@ -1583,21 +1823,31 @@ If ($showFileJobsBk) {
         }},
         @{Name="Last Result"; Expression = {If ($_.Info.LatestStatus -eq "None"){"Unknown"}Else{$_.Info.LatestStatus}}}
     }
-    $bodyFileJobsBk = $bodyFileJobsBk | Sort-Object "Next Run" | ConvertTo-HTML -Fragment
-    $bodyFileJobsBk = $subHead01 + "File Backup Job Status" + $subHead02 + $bodyFileJobsBk
+    $bodyFileJobsBk = $arrayFileJobsBk | Sort-Object "Next Run" | ConvertTo-HTML -Fragment
+	If ($arrayFileJobsBk."Last Result" -match "Failed") {
+        $FileJobsBkHead = $subHead01err
+      } ElseIf ($arrayFileJobsBk."Last Result" -match "Warning") {
+         $FileJobsBkHead = $subHead01war
+      } ElseIf ($arrayFileJobsBk."Last Result" -match "Success") {
+        $FileJobsBkHead = $subHead01suc
+      } Else {
+         $FileJobsBkHead = $subHead01
+      }
+    $bodyFileJobsBk = $FileJobsBkHead + "File Backup Job Status" + $subHead02 + $bodyFileJobsBk
   }
 }
 # Get File Backup Job Status End
 
 # Get Backup Job Size Begin
+# ED Sep 2023 round to two decimal places. 
 $bodyJobSizeBk = $null
 If ($showBackupSizeBk) {
   If ($backupsBk.count -gt 0) {
     $bodyJobSizeBk = Get-BackupSize -backups $backupsBk | Sort-Object JobName | Select-Object @{Name="Job Name"; Expression = {$_.JobName}},
       @{Name="VM Count"; Expression = {$_.VMCount}},
       @{Name="Repository"; Expression = {$_.Repo}},
-      @{Name="Data Size (GB)"; Expression = {$_.DataSize}},
-      @{Name="Backup Size (GB)"; Expression = {$_.BackupSize}},
+      @{Name="Data Size (GB)"; Expression = {[Math]::Round($_.DataSize,2)}},
+      @{Name="Backup Size (GB)"; Expression = {[Math]::Round($_.BackupSize,2)}},
       @{Name="Log Backup Size (GB)"; Expression = {$_.LogSize}} | ConvertTo-HTML -Fragment
     $bodyJobSizeBk = $subHead01 + "Backup Job Size" + $subHead02 + $bodyJobSizeBk
   }
@@ -1611,8 +1861,8 @@ If ($showFileBackupSizeBk) {
     $bodyFileJobSizeBk = Get-BackupSize -backups $fileBackupsBk | Sort-Object JobName | Select-Object @{Name="Job Name"; Expression = {$_.JobName}},
       @{Name="VM Count"; Expression = {$_.VMCount}},
       @{Name="Repository"; Expression = {$_.Repo}},
-      @{Name="Data Size (GB)"; Expression = {$_.DataSize}},
-      @{Name="Backup Size (GB)"; Expression = {$_.BackupSize}},
+      @{Name="Data Size (GB)"; Expression = {[Math]::Round($_.DataSize,2)}},
+      @{Name="Backup Size (GB)"; Expression = {[Math]::Round($_.BackupSize,2)}},
       @{Name="Log Backup Size (GB)"; Expression = {$_.LogSize}} | ConvertTo-HTML -Fragment
     $bodyFileJobSizeBk = $subHead01 + "File Backup Job Size" + $subHead02 + $bodyFileJobSizeBk
   }
@@ -1847,14 +2097,19 @@ If ($showAllTasksBk) {
       $bodyAllTasksBk = $allTasksBkHead + "Backup Tasks" + $subHead02 + $bodyAllTasksBk
     }
   }
-  If ($exportAllTasksBkToCSV) {
-    $null = Export-Csv -InputObject $($arrAllTasksBk | select "VM Name","Job Name","Start Time","Stop Time","Duration (HH:MM:SS)","Avg Speed (MB/s)","Total (GB)","Processed (GB)","Data Read (GB)","Transferred (GB)","Status") -Append -Delimiter $setCSVDelimiter -Encoding UTF8 -NoTypeInformation -Path "$($baseFilenameCSV)_tasks.csv"
+  If ($exportAllTasksBkToCSV -and [string]$arrAllTasksBk -ne "") {
+   # $null = Export-Csv -InputObject $($arrAllTasksBk | select "VM Name","Job Name","Start Time","Stop Time","Duration (HH:MM:SS)","Avg Speed (MB/s)","Total (GB)","Processed (GB)","Data Read (GB)","Transferred (GB)","Status") -Append -Delimiter $setCSVDelimiter -Encoding UTF8 -NoTypeInformation -Path "$($baseFilenameCSV)_tasks.csv"
+	#ED 21/08/2023 Different way to export array to Csv
+	# V12 might be missing speed, bytes etc.
+	# Excel. Use Ctrl T to convert into table. 
+		$arrAllTasksBk | Export-Csv -Append -Delimiter $setCSVDelimiter -Encoding UTF8 -NoTypeInformation -Path "$($baseFilenameCSV)_tasks.csv" | select "VM Name","Job Name","Start Time","Stop Time","Duration (HH:MM:SS)","Avg Speed (MB/s)","Total (GB)","Processed (GB)","Data Read (GB)","Transferred (GB)","Status"
   }
 }
 
 # Get Running Backup Tasks
 $bodyTasksRunningBk = $null
-If ($showRunningTasksBk) {
+#ED adding -and [string]$arrAllTasksBk -ne "" 
+If ($showRunningTasksBk -and [string]$arrAllTasksBk -ne "") {
   If ($runningTasksBk.count -gt 0) {
     $bodyTasksRunningBk = $runningTasksBk | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
         @{Name="Job Name"; Expression = {$_.JobSess.Name}},
@@ -2416,12 +2671,14 @@ If ($showSummaryBc) {
 }
 
 # Get Backup Copy Job Status
+#ED Aug 2023 adding colour
 $bodyJobsBc = $null
+$arrayJobsBc = @()
 If ($showJobsBc) {
   If ($allJobsBc.count -gt 0) {
     $bodyJobsBc = @()
     Foreach($BcJob in $allJobsBc) {
-      $bodyJobsBc += $BcJob | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
+      $arrayJobsBc += $BcJob | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="Enabled"; Expression = {$_.Info.IsScheduleEnabled}},
         @{Name="Type"; Expression = {$_.TypeToString}},
         @{Name="Status"; Expression = {
@@ -2442,6 +2699,8 @@ If ($showJobsBc) {
         @{Name="Target Repo"; Expression = {
           If ($($repoList | Where-Object {$_.Id -eq $BcJob.Info.TargetRepositoryId}).Name) {$($repoList | Where-Object {$_.Id -eq $BcJob.Info.TargetRepositoryId}).Name}
           Else {$($repoListSo | Where-Object {$_.Id -eq $BcJob.Info.TargetRepositoryId}).Name}}},
+#ED 26082028 added LatestRunLocal		  
+		  @{Name="LatestRunLocal"; Expression = {$_.LatestRunLocal}},
         @{Name="Next Run"; Expression = {
           If ($_.IsScheduleEnabled -eq $false) {"<Disabled>"}
           ElseIf ($_.Options.JobOptions.RunManually) {"<not scheduled>"}
@@ -2450,8 +2709,19 @@ If ($showJobsBc) {
           Else {$_.ScheduleOptions.NextRun}}},
         @{Name="Last Result"; Expression = {If ($_.Info.LatestStatus -eq "None"){""}Else{$_.Info.LatestStatus}}}
     }
-    $bodyJobsBc = $bodyJobsBc | Sort-Object "Next Run", "Job Name" | ConvertTo-HTML -Fragment
-    $bodyJobsBc = $subHead01 + "Backup Copy Job Status" + $subHead02 + $bodyJobsBc
+    $bodyJobsBc = $arrayJobsBc | Sort-Object "Next Run", "Job Name" | ConvertTo-HTML -Fragment
+	#ED Added color/colour 
+	 If ([string]$arrayJobsBc."Last Result" -match "Failed") {
+        $JobsBcHead = $subHead01err
+      } ElseIf ([string]$arrayJobsBc."Last Result" -match "Warning") {
+        $JobsBcHead = $subHead01war
+      } ElseIf ([string]$arrayJobsBc."Last Result" -match "Success") {
+        $JobsBcHead = $subHead01suc
+      } Else {
+	  $JobsBcHead = $subHead01}
+	
+	
+    $bodyJobsBc = $JobsBcHead + "Backup Copy Job Status" + $subHead02 + $bodyJobsBc
   }
 }
 
@@ -2462,8 +2732,9 @@ If ($showBackupSizeBc) {
     $bodyJobSizeBc = Get-BackupSize -backups $backupsBc | Sort-Object JobName | Select-Object @{Name="Job Name"; Expression = {$_.JobName}},
       @{Name="VM Count"; Expression = {$_.VMCount}},
       @{Name="Repository"; Expression = {$_.Repo}},
-      @{Name="Data Size (GB)"; Expression = {$_.DataSize}},
-      @{Name="Backup Size (GB)"; Expression = {$_.BackupSize}} | ConvertTo-HTML -Fragment
+      @{Name="Data Size (GB)"; Expression = {[Math]::Round($_.DataSize,2)}},
+      #ED 27/08/2023 Math round 2 dec 
+	  @{Name="Backup Size (GB)"; Expression = {[Math]::Round($_.BackupSize,2)}} | ConvertTo-HTML -Fragment
     $bodyJobSizeBc = $subHead01 + "Backup Copy Job Size" + $subHead02 + $bodyJobSizeBc
   }
 }
@@ -2892,14 +3163,17 @@ If ($showSummaryTp) {
 }
 
 # Get Tape Backup Job Status
+# ED Aug 2023 added colour 
 $bodyJobsTp = $null
 If ($showJobsTp) {
   If ($allJobsTp.count -gt 0) {
-    $bodyJobsTp = @()
-    Foreach($tpJob in $allJobsTp) {
-      $bodyJobsTp += $tpJob | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
+    $arrayJobsTp = @()
+	Foreach($tpJob in $allJobsTp) {
+      $arrayJobsTp += $tpJob | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="Job Type"; Expression = {$_.Type}},@{Name="Media Pool"; Expression = {$_.Target}},
         @{Name="Status"; Expression = {$_.LastState}},
+		# ED adding last run
+		@{Name="Last Run"; Expression = {(Get-VBRJobScheduleOptions -Job $_).LatestRunLocal }},
         @{Name="Next Run"; Expression = {
           If ($_.ScheduleOptions.Type -eq "AfterNewBackup") {"<Continuous>"}
           ElseIf ($_.ScheduleOptions.Type -eq "AfterJob") {"After [" + $(($allJobs + $allJobsTp) | Where-Object {$_.Id -eq $tpJob.ScheduleOptions.JobId}).Name + "]"}
@@ -2907,8 +3181,18 @@ If ($showJobsTp) {
           Else {"<not scheduled>"}}},
         @{Name="Last Result"; Expression = {If ($_.LastResult -eq "None"){""}Else{$_.LastResult}}}
     }
-    $bodyJobsTp = $bodyJobsTp | Sort-Object "Next Run", "Job Name" | ConvertTo-HTML -Fragment
-    $bodyJobsTp = $subHead01 + "Tape Backup Job Status" + $subHead02 + $bodyJobsTp
+    $bodyJobsTp = $arrayJobsTp | Sort-Object "Next Run", "Job Name" | ConvertTo-HTML -Fragment
+	
+	If ($arrayJobsTp."Last Result" -match "Failed") {
+        $JobsTpHead = $subHead01err
+      } ElseIf ($arrayJobsTp."Last Result" -match "Warning") {
+        $JobsTpHead = $subHead01war
+      } ElseIf ($arrayJobsTp."Last Result" -match "Success") {
+        $JobsTpHead = $subHead01suc
+      } Else {
+        $JobsTpHead = $subHead01
+      }
+    $bodyJobsTp = $JobsTpHead + "Tape Backup Job Status" + $subHead02 + $bodyJobsTp
   }
 }
 
@@ -3361,6 +3645,8 @@ If ($showTapes) {
     @{Name="Capacity (GB)"; Expression = {[Math]::Round([Decimal]$_.Capacity/1GB, 2)}},
     @{Name="Free (GB)"; Expression = {[Math]::Round([Decimal]$_.Free/1GB, 2)}},
     @{Name="Last Write"; Expression = {$_.LastWriteTime}},
+	#ED Aug 2023 added ProtectedBySoftware
+	@{Name="ProtectedBySoftware"; Expression = {$_.ProtectedBySoftware}},
     @{Name="Expiration Date"; Expression = {
         If ($(Get-Date $_.ExpirationDate) -lt $(Get-Date)) {
           "Expired"
@@ -3407,6 +3693,8 @@ If ($showTpMp) {
       @{Name="Capacity (GB)"; Expression = {[Math]::Round([Decimal]$_.Capacity/1GB, 2)}},
       @{Name="Free (GB)"; Expression = {[Math]::Round([Decimal]$_.Free/1GB, 2)}},
       @{Name="Last Write"; Expression = {$_.LastWriteTime}},
+	#ED added ProtectedBySoftware	 
+	 @{Name="ProtectedBySoftware"; Expression = {$_.ProtectedBySoftware}},
       @{Name="Expiration Date"; Expression = {
           If ($(Get-Date $_.ExpirationDate) -lt $(Get-Date)) {
             "Expired"
@@ -3434,6 +3722,8 @@ If ($showTpVlt) {
       @{Name="Capacity (GB)"; Expression = {[Math]::Round([Decimal]$_.Capacity/1GB, 2)}},
       @{Name="Free (GB)"; Expression = {[Math]::Round([Decimal]$_.Free/1GB, 2)}},
       @{Name="Last Write"; Expression = {$_.LastWriteTime}},
+	  #ED added ProtectedBySoftware
+	  @{Name="ProtectedBySoftware"; Expression = {$_.ProtectedBySoftware}},
       @{Name="Expiration Date"; Expression = {
           If ($(Get-Date $_.ExpirationDate) -lt $(Get-Date)) {
             "Expired"
@@ -3483,6 +3773,8 @@ If ($showExpTp) {
     }},
     @{Name="Capacity (GB)"; Expression = {[Math]::Round([Decimal]$_.Capacity/1GB, 2)}},
     @{Name="Free (GB)"; Expression = {[Math]::Round([Decimal]$_.Free/1GB, 2)}},
+	#ED added ProtectedBySoftware
+	@{Name="ProtectedBySoftware"; Expression = {$_.ProtectedBySoftware}},
     @{Name="Last Write"; Expression = {$_.LastWriteTime}} | Sort-Object Name | ConvertTo-HTML -Fragment
     $bodyExpTp = $subHead01 + "All Expired Tapes" + $subHead02 + $expTapes
   }
@@ -3522,6 +3814,8 @@ If ($showExpTpMp) {
       }},
       @{Name="Capacity (GB)"; Expression = {[Math]::Round([Decimal]$_.Capacity/1GB, 2)}},
       @{Name="Free (GB)"; Expression = {[Math]::Round([Decimal]$_.Free/1GB, 2)}},
+	  #ED added ProtectedBySoftware
+	  @{Name="ProtectedBySoftware"; Expression = {$_.ProtectedBySoftware}},
       @{Name="Last Write"; Expression = {$_.LastWriteTime}} | Sort-Object "Last Write" | ConvertTo-HTML -Fragment
       $bodyTpExpPool += $subHead01 + "Expired Tapes in Media Pool: " + $mp.Name + $subHead02 + $expTapes
     }
@@ -3542,6 +3836,8 @@ If ($showExpTpVlt) {
       @{Name="Media Set"; Expression = {$_.MediaSet}}, @{Name="Sequence #"; Expression = {$_.SequenceNumber}},
       @{Name="Capacity (GB)"; Expression = {[Math]::Round([Decimal]$_.Capacity/1GB, 2)}},
       @{Name="Free (GB)"; Expression = {[Math]::Round([Decimal]$_.Free/1GB, 2)}},
+	  #ED added ProtectedBySoftware
+	  @{Name="ProtectedBySoftware"; Expression = {$_.ProtectedBySoftware}},
       @{Name="Last Write"; Expression = {$_.LastWriteTime}} | Sort-Object "Last Write" | ConvertTo-HTML -Fragment
       $bodyTpExpVlt += $subHead01 + "Expired Tapes in Vault: " + $vlt.Name + $subHead02 + $expTapes
     }
@@ -3586,6 +3882,8 @@ If ($showTpWrt) {
     @{Name="Capacity (GB)"; Expression = {[Math]::Round([Decimal]$_.Capacity/1GB, 2)}},
     @{Name="Free (GB)"; Expression = {[Math]::Round([Decimal]$_.Free/1GB, 2)}},
     @{Name="Last Write"; Expression = {$_.LastWriteTime}},
+	#ED added ProtectedBySoftware
+	@{Name="ProtectedBySoftware"; Expression = {$_.ProtectedBySoftware}},
     @{Name="Expiration Date"; Expression = {
         If ($(Get-Date $_.ExpirationDate) -lt $(Get-Date)) {
           "Expired"
@@ -3630,36 +3928,78 @@ If ($showSummaryEp) {
 }
 
 # Get Agent Backup Job Status
-$bodyJobsEp = $null
+# ED Aug 2023 added LatestRunLocal and colour
+$bodyJobsEp 	= $null
+$arrayJobsEp	= @()
 If ($showJobsEp) {
   If ($allJobsEp.count -gt 0) {
-    $bodyJobsEp = $allJobsEp | Sort-Object Name | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
+	   Foreach($EpJob in $allJobsEp) {
+    $arrayJobsEp += $EpJob | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
       @{Name="Description"; Expression = {$_.Description}},
       @{Name="Enabled"; Expression = {$_.JobEnabled}},
       @{Name="Status"; Expression = {(Get-VBRComputerBackupJobSession -Name $_.Name)[0].state}},
       @{Name="Target Repo"; Expression = {$_.BackupRepository.Name}},
+	  @{Name="Last Run"; Expression = {(Get-VBRJobScheduleOptions -Job $_).LatestRunLocal }},
       @{Name="Next Run"; Expression = {
                 If ($_.ScheduleEnabled -eq $false) {"<not scheduled>"}
                 Else {(Get-VBRJobScheduleOptions -Job $_).nextrun}}},
-      @{Name="Last Result"; Expression = {(Get-VBRComputerBackupJobSession -Name $_.Name)[0].result}} | ConvertTo-HTML -Fragment
-    $bodyJobsEp = $subHead01 + "Agent Backup Job Status" + $subHead02 + $bodyJobsEp
+  @{Name="Last Result"; Expression = {(Get-VBRComputerBackupJobSession -Name $_.Name)[0].result}}
+	   }
+$bodyJobsEp = $arrayJobsEp | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
+
+	  If ($arrayJobsEp."Last Result" -match "Failed") {
+        $JobsEpHead = $subHead01err
+      } ElseIf ($arrayJobsEp."Last Result" -match "Warning") {
+       $JobsEpHead = $subHead01war
+      } ElseIf ($arrayJobsEp."Last Result" -match "Success") {
+        $JobsEpHead = $subHead01suc
+      } Else {
+	  $JobsEpHead = $subHead01}
+      
+    $bodyJobsEp = $JobsEpHead + "Agent Backup Job Status" + $subHead02 + $bodyJobsEp
   }
 }
 
 # Get Agent Backup Job Size
-$bodyJobSizeEp = $null
+
+# Get Agent Backup Job Size (EpAgentBackup)
+#ED 12.0.0.11. Fixing up Agent Size report inline with Original style. 
+$bodyJobSizeEpOther = $null
 If ($showBackupSizeEp) {
-  If ($backupsEp.count -gt 0) {
-    $bodyJobSizeEp = Get-BackupSize -backups $backupsEp | Sort-Object JobName | Select-Object @{Name="Job Name"; Expression = {$_.JobName}},
-      @{Name="VM Count"; Expression = {$_.VMCount}},
+  If ($backupsEpOther.count -gt 0) {
+	$backupsEpOther = $backupsEpOther | Sort-Object JobType, JobName 
+    $bodyJobSizeEpOther = Get-BackupSize -backups $backupsEpOther | Select-Object @{Name="Job Name"; Expression = {$_.JobName}},
+       @{Name="JobType"; Expression = {[String]$_.JobType}},
+	   @{Name="VM Count"; Expression = {$_.VMCount}},
       @{Name="Repository"; Expression = {$_.Repo}},
-      <#@{Name="Data Size (GB)"; Expression = {$_.DataSize}},
-      @{Name="Backup Size (GB)"; Expression = {$_.BackupSize}},
-      #Agent Jobs seems to work different and this was a easy fix#>
+      #@{Name="Data Size (GB)"; Expression = {$_.DataSize}},
+      #@{Name="Backup Size (GB)"; Expression = {$_.BackupSize}},
+      #Agent Jobs seems to work different and this was a easy fix#
       @{Name="Backup Size (GB)"; Expression = {$_.LogSize}} | ConvertTo-HTML -Fragment
-    $bodyJobSizeEp = $subHead01 + "Agent Backup Job Size" + $subHead02 + $bodyJobSizeEp
+    $bodyJobSizeEpOther = $subHead01 + "Agent Backup Job Size (EpAgentBackup)" + $subHead02 + $bodyJobSizeEpOther
   }
+
+# Get Agent Backup Job Size (EpAgentManagement)
+#ED 12.0.0.11
+$bodyJobSizeEp = $null
+
+  If ($backupsEp.count -gt 0) {
+	   $backupsEp = $backupsEp | Sort-Object JobType, JobName 
+    $bodyJobSizeEp = Get-BackupSize -backups $backupsEp | Select-Object @{Name="Job Name"; Expression = {$_.jobName -split(" - ")| Select-Object -First 1}},
+      # @{Name="VM Name";  Expression = {$_.jobName -split(" - ")| Select-Object -Skip 1 |Select-Object -First 1}},
+	    @{Name="VM Name";  Expression = {$_.jobName -split(" - ")| Select-Object -Index 1}},
+	  @{Name="JobType"; Expression = {[String]$_.JobType}},
+	  @{Name="VM Count"; Expression = {$_.VMCount}},
+      @{Name="Repository"; Expression = {$_.Repo}},
+	  @{Name="Data Size (GB)"; Expression = {$_.DataSize}},
+      @{Name="Backup Size (GB)"; Expression = {$_.BackupSize}},
+     @{Name="Backup Log Size (GB)"; Expression = {$_.LogSize}} | ConvertTo-HTML -Fragment
+    $bodyJobSizeEp = $subHead01 + "Agent Backup Job Size (EpAgentManagement)" + $subHead02 + $bodyJobSizeEp
+	
+  }
+   $bodyJobSizeEp =  $bodyJobSizeEp +  $bodyJobSizeEpOther
 }
+
 
 # Get Agent Backup Sessions
 $bodyAllSessEp = @()
@@ -3789,13 +4129,16 @@ If ($showSummarySb) {
   $bodySummarySb = $summarySbHead + "SureBackup Results Summary" + $subHead02 + $bodySummarySb
 }
 
-# Get SureBackup Job Status
-$bodyJobsSb = $null
+# Get SureBackup Job Status V11
+# ED Aug 2023 added colour. 
+If ($objectVersion.VeeamVersion -lt 12.0) {
+$bodyJobsSb 	= 	$null
+$arrbodyJobsSb	=	@()
 If ($showJobsSb) {
   If ($allJobsSb.count -gt 0) {
     $bodyJobsSb = @()
     Foreach($SbJob in $allJobsSb) {
-      $bodyJobsSb += $SbJob | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
+      $arrbodyJobsSb += $SbJob | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
         @{Name="Enabled"; Expression = {$_.IsScheduleEnabled}},
         @{Name="Status"; Expression = {
           If ($_.GetLastState() -eq "Working") {
@@ -3807,8 +4150,9 @@ If ($showJobsSb) {
             $_.GetLastState()
           }
         }},
-        @{Name="Virtual Lab"; Expression = {$(Get-VSBVirtualLab | Where-Object {$_.Id -eq $SbJob.VirtualLabId}).Name}},
+        @{Name="Virtual Lab"; Expression = {$(Get-VBRVirtualLab | Where-Object {$_.Id -eq $SbJob.VirtualLabId}).Name}},
         @{Name="Linked Jobs"; Expression = {$($_.GetLinkedJobs()).Name -join ","}},
+		 @{Name="Last Run"; Expression = {$_.ScheduleOptions.LatestRunLocal }},
         @{Name="Next Run"; Expression = {
           If ($_.IsScheduleEnabled -eq $false) {"<Disabled>"}
           ElseIf ($_.JobOptions.RunManually) {"<not scheduled>"}
@@ -3817,9 +4161,75 @@ If ($showJobsSb) {
           Else {$_.ScheduleOptions.NextRun}}},
         @{Name="Last Result"; Expression = {If ($_.GetLastResult() -eq "None"){""}Else{$_.GetLastResult()}}}
     }
-    $bodyJobsSb = $bodyJobsSb | Sort-Object "Next Run" | ConvertTo-HTML -Fragment
-    $bodyJobsSb = $subHead01 + "SureBackup Job Status" + $subHead02 + $bodyJobsSb
+    $bodyJobsSb = $arrbodyJobsSb | Sort-Object "Last Run" | ConvertTo-HTML -Fragment
+    #ED V11 - V12
+	If ([string]$arrbodyJobsSb."Last Result" -match "Failed") {
+        $allJobsSbHead = $subHead01err
+      } ElseIf ([string]$arrbodyJobsSb."Last Result" -match "Warning") {
+        $allJobsSbHead = $subHead01war
+  } ElseIf ([string]$arrbodyJobsSb."Last Result" -match "Success") {
+        $allJobsSbHead = $subHead01suc
+      } Else {
+        $allJobsSbHead = $subHead01
+      }
+    $bodyJobsSb = $allJobsSbHead + "SureBackup Job Status" + $subHead02 + $bodyJobsSb
   }
+}
+}Else{
+
+# Get SureBackup Job Status V12 
+
+#ED V12 11/08/2023. Reasonable amount of testing carried out. 
+# The V11 version IsScheduleEnabled oddly reports True for enabled and disable jobs (Bug).
+
+$bodyJobsSb 	= 	$null
+$arrbodyJobsSb	=	@()
+If ($showJobsSb) {
+  If ($allJobsSb.count -gt 0) {
+    $bodyJobsSb = @()
+	Foreach($SbJob in $allJobsSb) {
+	$arrbodyJobsSb +=$SBJob | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
+        @{Name="Enabled"; Expression = {$_.IsEnabled}},
+		 @{Name="ScheduleEnabled"; Expression = {$_.ScheduleEnabled}},
+        @{Name="Status"; Expression = {
+          If ($_.LastState -eq "Working") {
+		#ED
+           #Not available in V12 Get-VBRSureBackupSession 	$currentSess = $_.FindLastSession()
+           #Not available in V12 Get-VBRSureBackupSession	$csessPercent = $currentSess.CompletionPercentage
+           #Not available in V12 Get-VBRSureBackupSession	$cStatus = "$($csessPercent)% completed"
+           #Not available in V12 Get-VBRSureBackupSession	$cStatus
+		  $_.LastState
+          } Else {
+            $_.LastState
+          }
+        }},
+        @{Name="Virtual Lab"; Expression = {$_.VirtualLab }},
+        @{Name="Linked Jobs"; Expression = {$($_.LinkedJob.job).Name -join ","}},
+        @{Name="Last Run"; Expression = {$_.Lastrun }},
+		@{Name="Next Run"; Expression = {
+          If ($_.IsEnabled -eq $false) {"<Disabled>"}
+          ElseIf ($_.ScheduleEnabled -eq $False) {"<Not scheduled>"}
+         #ED Cant see this in the GUI for V11 or 12 "ElseIf ($_.ScheduleOptions.IsContinuous) {"<Continuous>"}"
+          ElseIf ($_.ScheduleOptions.type -eq "AfterJob") {"After [" + $(($allJobs + $allJobsTp) | Where-Object {$_.Id -eq $SbJob.ScheduleOptions.AfterJobId}).Name + "]"}
+		Else {$_.NextRun}
+		 #ED $_.ScheduleOptions.NextRun Looks blank in V11 (Bug). Replaced with $_.NextRun. Working now in V12
+		}},
+        @{Name="Result"; Expression = {If ($_.LastResult -eq "None"){""}Else{$_.LastResult}}}
+	 }
+    $bodyJobsSb = $arrbodyJobsSb | Sort-Object "Last Run" | ConvertTo-HTML -Fragment
+	#ED V11 - V12
+	If ($arrbodyJobsSb.Result -match "Failed") {
+        $allJobsSbHead = $subHead01err
+      } ElseIf ($arrbodyJobsSb.Result -match "Warning") {
+        $allJobsSbHead = $subHead01war
+      } ElseIf ($arrbodyJobsSb.Result -match "Success") {
+        $allJobsSbHead = $subHead01suc
+      } Else {
+        $allJobsSbHead = $subHead01
+      }
+    $bodyJobsSb = $allJobsSbHead + "SureBackup Job Status" + $subHead02 + $bodyJobsSb
+  }
+}
 }
 
 # Get SureBackup Sessions
@@ -3857,9 +4267,17 @@ $bodyRunningSb = $null
 If ($showRunningSb) {
   If ($runningSessionsSb.count -gt 0) {
     $bodyRunningSb = $runningSessionsSb | Sort-Object Creationtime | Select-Object @{Name="Job Name"; Expression = {$_.Name}},
+	#ED added State
+	  @{Name="Status"; Expression = {$_.State}},
       @{Name="Start Time"; Expression = {$_.CreationTime}},
       @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $(New-TimeSpan $_.CreationTime $(Get-Date))}},
-      @{Name="% Complete"; Expression = {$_.Progress}} | ConvertTo-HTML -Fragment
+	# ED V12 doesn't seem to have ".Progress" or a substitute 
+	   @{Name="% Complete"; Expression = {
+          If ([string]$_.Progress -eq "") {
+            "V12 NoData"
+          } Else {
+          	 $_.Progress
+          }}} | ConvertTo-HTML -Fragment
     $bodyRunningSb = $subHead01 + "Running SureBackup Jobs" + $subHead02 + $bodyRunningSb
   }
 }
@@ -3913,14 +4331,68 @@ If ($showSuccessSb) {
 ## Gathering tasks after session info has been recorded due to Veeam issue
 # Gather all SureBackup Tasks from Sessions within time frame
 $taskListSb = @()
+
+# ED V11
+If ($objectVersion.VeeamVersion -lt 12.0) {
 $taskListSb += $sessListSb | Get-VSBTaskSession
+# ED V11
 $successTasksSb = @($taskListSb | Where-Object {$_.Info.Result -eq "Success"})
 $wfTasksSb = @($taskListSb | Where-Object {$_.Info.Result -match "Warning|Failed"})
-$runningTasksSb = @()
-$runningTasksSb += $runningSessionsSb | Get-VSBTaskSession | Where-Object {$_.Status -ne "Stopped"}
+}Else{
 
-# Get SureBackup Tasks
+#ED V12
+foreach ($j in $sessListSb){$taskListSb += Get-VBRSureBackupTaskSession -Session $j |select-object  @{Name="JobName"; Expression = {$j.Name}},
+		Name,
+		ID,
+		SessionId,
+		type,
+		CreationTime,
+		EndTime,
+		Result,
+		State,
+		HeartbeatStatus,    
+		PingStatus,           
+		TestScriptStatus,     
+		ValidationTestStatus,
+		VirusScanStatus}
+#$taskListSb
+# ED V12
+$successTasksSb = @($taskListSb | Where-Object {$_.Result -eq "Success"})
+#$wfTasksSb=@()
+$wfTasksSb = @($taskListSb | Where-Object {$_.Result -match "Warning|Failed"})
+
+}
+
+
+$runningTasksSb = @()
+
+#ED V11
+If ($objectVersion.VeeamVersion -lt 12.0) {
+$runningTasksSb += $runningSessionsSb | Get-VSBTaskSession | Where-Object {$_.Status -ne "Stopped"}
+}Else{
+#ED V12 . Working
+foreach ($j in $runningSessionsSb){$runningTasksSb += Get-VBRSureBackupTaskSession -Session $j |select-object  @{Name="JobName"; Expression = {$j.Name}},
+		Name,
+		ID,
+		SessionId,
+		type,
+		CreationTime,
+		EndTime,
+		Result,
+		State,
+		HeartbeatStatus,    
+		PingStatus,           
+		TestScriptStatus,     
+		ValidationTestStatus,
+		VirusScanStatus}
+#$runningTasksSb
+}
+
+# Get SureBackup Tasks V11
+If ($objectVersion.VeeamVersion -lt 12.0) {																		
 $bodyAllTasksSb = $null
+
+	
 If ($showAllTasksSb) {
   If ($taskListSb.count -gt 0) {
     $arrAllTasksSb = $taskListSb | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
@@ -3939,6 +4411,7 @@ If ($showAllTasksSb) {
       @{Name="Ping Test"; Expression = {$_.PingStatus}},
       @{Name="Script Test"; Expression = {$_.TestScriptStatus}},
       @{Name="Validation Test"; Expression = {$_.VadiationTestStatus}},
+	  @{Name="VirusScanStatus Test"; Expression = {$_.VirusScanStatus}},																	 
       @{Name="Result"; Expression = {
           If ($_.Info.Result -eq "notrunning") {
             "None"
@@ -3947,6 +4420,7 @@ If ($showAllTasksSb) {
           }
       }}
     $bodyAllTasksSb = $arrAllTasksSb | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
+																												
     If ($arrAllTasksSb.Result -match "Failed") {
         $allTasksSbHead = $subHead01err
       } ElseIf ($arrAllTasksSb.Result -match "Warning") {
@@ -3959,30 +4433,138 @@ If ($showAllTasksSb) {
     $bodyAllTasksSb = $allTasksSbHead + "SureBackup Tasks" + $subHead02 + $bodyAllTasksSb
   }
 }
+}Else{			   
+			   
+			   
+# Get SureBackup Tasks 12
+# ED. V12 is missing a lot of meta data vs V11. .info is not available. 
+$bodyAllTasksSb = $null
 
-# Get Running SureBackup Tasks
+#V12
+If ($showAllTasksSb) {
+  If ($taskListSb.count -gt 0) {
+    $arrAllTasksSb = $taskListSb | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
+		@{Name="Job Name"; Expression = {$_.JobName}},
+	 	@{Name="Status"; Expression = {$_.State}},
+     	@{Name="Start Time"; Expression = {$_.CreationTime}},
+	 	@{Name="Stop Time"; Expression = {If ($_.EndTime -eq "1/1/1900 12:00:00 AM"){"-"} Else {$_.EndTime}}},
+        @{Name="Duration (HH:MM:SS)"; Expression = {
+    		If ($_.EndTime -eq "1/1/1900 12:00:00 AM") {
+          Get-Duration -ts $(New-TimeSpan $_.CreationTime $(Get-Date))
+        } Else {Get-Duration -ts $(New-TimeSpan $_.CreationTime $_.EndTime)}
+		}},
+      @{Name="Heartbeat Test"; Expression = {$_.HeartbeatStatus}},
+      @{Name="Ping Test"; Expression = {$_.PingStatus}},
+      @{Name="Script Test"; Expression = {$_.TestScriptStatus}},
+      @{Name="Validation Test"; Expression = {$_.ValidationTestStatus}},
+	  @{Name="VirusScanStatus Test"; Expression = {$_.VirusScanStatus}},
+        @{Name="Result"; Expression = {
+          If ($_.Result -eq "notrunning") {
+            "None"
+          } Else {
+          	 $_.Result
+          }
+      }}
+    $bodyAllTasksSb = $arrAllTasksSb | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
+	#ED V12 added [String] to make colour more stable. ie Red for any failure 
+			If 		([String]$arrAllTasksSb.Result -match "Failed") 	{$allTasksSbHead = $subHead01err
+		} ElseIf 	([String]$arrAllTasksSb.Result -match "Warning") 	{$allTasksSbHead = $subHead01war
+		} ElseIf 	([String]$arrAllTasksSb.Result -match "Success") 	{$allTasksSbHead = $subHead01suc
+		} Else {$allTasksSbHead = $subHead01}
+    $bodyAllTasksSb = $allTasksSbHead + "SureBackup Tasks" + $subHead02 + $bodyAllTasksSb
+  }
+}
+#$arrAllTasksSb
+#$bodyAllTasksSb
+}
+
+# Get Running SureBackup Tasks V11
+If ($objectVersion.VeeamVersion -lt 12.0) {
+																		
 $bodyTasksRunningSb = $null
 If ($showRunningTasksSb) {
   If ($runningTasksSb.count -gt 0) {
     $bodyTasksRunningSb = $runningTasksSb | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
       @{Name="Job Name"; Expression = {$_.JobSession.JobName}},
+											 
       @{Name="Start Time"; Expression = {$_.Info.StartTime}},
+																										 
       @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $(New-TimeSpan $_.Info.StartTime $(Get-Date))}},
       @{Name="Heartbeat Test"; Expression = {$_.HeartbeatStatus}},
       @{Name="Ping Test"; Expression = {$_.PingStatus}},
       @{Name="Script Test"; Expression = {$_.TestScriptStatus}},
       @{Name="Validation Test"; Expression = {$_.VadiationTestStatus}},
-      Status | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
+	  @{Name="VirusScanStatus Test"; Expression = {$_.VirusScanStatus}},															 
+	  Status | Sort-Object "Start Time" | ConvertTo-HTML -Fragment				
     $bodyTasksRunningSb = $subHead01 + "Running SureBackup Tasks" + $subHead02 + $bodyTasksRunningSb
   }
 }
+}Else{
 
-# Get SureBackup Tasks with Warnings or Failures
+# Get Running SureBackup Tasks V12
+
+#ED V12. Added Stop Time, VirusScanStatus Test, Result and color/colour 
+$bodyTasksRunningSb = $null
+If ($showRunningTasksSb) {
+  If ($runningTasksSb.count -gt 0) {
+    $allTasksRunningSb = $runningTasksSb | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
+      @{Name="Job Name"; Expression = {$_.JobName}},
+	  @{Name="Status"; Expression = {$_.State}},
+	  @{Name="Start Time"; Expression = {$_.CreationTime}},
+	  @{Name="Stop Time"; Expression = {If ($_.EndTime -eq "1/1/1900 12:00:00 AM"){"-"} Else {$_.EndTime}}},
+	  @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $(New-TimeSpan $_.CreationTime $(Get-Date))}},
+      @{Name="Heartbeat Test"; Expression = {$_.HeartbeatStatus}},
+      @{Name="Ping Test"; Expression = {$_.PingStatus}},
+	  @{Name="Script Test"; Expression = {$_.TestScriptStatus}},
+      @{Name="Validation Test"; Expression = {$_.ValidationTestStatus}},
+	  @{Name="VirusScanStatus Test"; Expression = {$_.VirusScanStatus}},
+	 	  @{Name="Result"; Expression = {
+          If ($_.Result -eq "notrunning") {
+            "None"
+          } Else {
+          	 $_.Result
+	   }}}  
+	   $bodyTasksRunningSb = $allTasksRunningSb | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
+	   #ED V12 added [String] to make colour more stable. ie Red for any failure 
+			If 		([String]$allTasksRunningSb.Result -match "Failed") 	{$allTasksRunningHead = $subHead01err
+		} ElseIf 	([String]$allTasksRunningSb.Result -match "Warning") 	{$allTasksRunningHead = $subHead01war
+		} ElseIf 	([String]$allTasksRunningSb.Result -match "Success") 	{$allTasksRunningHead = $subHead01suc
+		} Else {$allTasksRunningHead = $subHead01}
+    $bodyTasksRunningSb = $allTasksRunningHead  + "Running SureBackup Tasks" + $subHead02 + $bodyTasksRunningSb
+  }
+}
+}
+
+
+# ED V11-12 Aug 2023. New section $ReportSBFailingOnly
+# Eamonn. Exclude any VM that passed in the time frame
+If ($ReportSBFailingOnly -eq $true){
+$failedButBassedInTimeFrameSB =@()
+$failedSB =@()
+$failedSB = $wfTasksSb
+
+ for ($i=0; $i -lt $failedSB.count; $i++ )
+    {
+	#$failedSB[$i]
+        If ($failedSB[$i].Name | Where {$successTasksSb.name -notContains $_ } ) {$failedButBassedInTimeFrameSB += $failedSB[$i]}
+		}
+		$SBFailing=@()
+	 for ($i=0; $i -lt $failedButBassedInTimeFrameSB.count; $i++ )
+    {
+	#$failedSB[$i]
+        If ($failedButBassedInTimeFrameSB[$i].Name | Where {$excludeVMs -notContains $_ } ) {$SBFailing += $failedButBassedInTimeFrameSB[$i]}
+		}
+		$wfTasksSb = $SBFailing
+}
+
+# Get SureBackup Tasks with Warnings or Failures V11
+	If ($objectVersion.VeeamVersion -lt 12.0) {											  
 $bodyTaskWFSb = $null
 If ($showTaskWFSb) {
   If ($wfTasksSb.count -gt 0) {
     $arrTaskWFSb = $wfTasksSb | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
       @{Name="Job Name"; Expression = {$_.JobSession.JobName}},
+											 
       @{Name="Start Time"; Expression = {$_.Info.StartTime}},
       @{Name="Stop Time"; Expression = {$_.Info.FinishTime}},
       @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $(New-TimeSpan $_.Info.StartTime $_.Info.FinishTime)}},
@@ -3990,7 +4572,45 @@ If ($showTaskWFSb) {
       @{Name="Ping Test"; Expression = {$_.PingStatus}},
       @{Name="Script Test"; Expression = {$_.TestScriptStatus}},
       @{Name="Validation Test"; Expression = {$_.VadiationTestStatus}},
-      @{Name="Result"; Expression = {$_.Info.Result}}
+       @{Name="VirusScanStatus Test"; Expression = {$_.VirusScanStatus}},
+	  @{Name="Result"; Expression = {$_.Info.Result}}
+	$bodyTaskWFSb = $arrTaskWFSb | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
+    If ($arrTaskWFSb.Result -match "Failed") {
+        $taskWFSbHead = $subHead01err
+      } ElseIf ($arrTaskWFSb.Result -match "Warning") {
+        $taskWFSbHead = $subHead01war
+      } ElseIf ($arrTaskWFSb.Result -match "Success") {
+        $taskWFSbHead = $subHead01suc
+      } Else {
+        $taskWFSbHead = $subHead01
+      }
+    $bodyTaskWFSb = $taskWFSbHead + "SureBackup Tasks with Warnings or Failures" + $subHead02 + $bodyTaskWFSb
+  }
+}
+	}Else{
+
+# Get SureBackup Tasks with Warnings or Failures V12
+#ED . Fix up. Added State and VirusScanStatus Test
+$bodyTaskWFSb = $null
+If ($showTaskWFSb) {
+  If ($wfTasksSb.count -gt 0) {
+    $arrTaskWFSb = $wfTasksSb | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
+      @{Name="Job Name"; Expression = {$_.JobName}},
+	  @{Name="Status"; Expression = {$_.State}},
+	  @{Name="Start Time"; Expression = {$_.CreationTime}},
+      @{Name="Stop Time"; Expression = {If ($_.EndTime -eq "1/1/1900 12:00:00 AM"){"-"} Else {$_.EndTime}}},
+      @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $(New-TimeSpan $_.CreationTime $_.EndTime)}},
+      @{Name="Heartbeat Test"; Expression = {$_.HeartbeatStatus}},
+      @{Name="Ping Test"; Expression = {$_.PingStatus}},
+      @{Name="Script Test"; Expression = {$_.TestScriptStatus}},
+      @{Name="Validation Test"; Expression = {$_.ValidationTestStatus}},
+	  @{Name="VirusScanStatus Test"; Expression = {$_.VirusScanStatus}},
+        @{Name="Result"; Expression = {
+          If ($_.Result -eq "notrunning") {
+            "None"
+          } Else {
+          	 $_.Result
+	   }}} 
     $bodyTaskWFSb = $arrTaskWFSb | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
     If ($arrTaskWFSb.Result -match "Failed") {
         $taskWFSbHead = $subHead01err
@@ -4004,9 +4624,13 @@ If ($showTaskWFSb) {
     $bodyTaskWFSb = $taskWFSbHead + "SureBackup Tasks with Warnings or Failures" + $subHead02 + $bodyTaskWFSb
   }
 }
-
-# Get Successful SureBackup Tasks
+	}
+	
+# Get Successful SureBackup Tasks V11 
+If ($objectVersion.VeeamVersion -lt 12.0) {
 $bodyTaskSuccSb = $null
+
+											
 If ($showTaskSuccessSb) {
   If ($successTasksSb.count -gt 0) {
     $bodyTaskSuccSb = $successTasksSb | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
@@ -4018,15 +4642,40 @@ If ($showTaskSuccessSb) {
       @{Name="Ping Test"; Expression = {$_.PingStatus}},
       @{Name="Script Test"; Expression = {$_.TestScriptStatus}},
       @{Name="Validation Test"; Expression = {$_.VadiationTestStatus}},
+	  @{Name="VirusScanStatus Test"; Expression = {$_.VirusScanStatus}},																	 
       @{Name="Result"; Expression = {$_.Info.Result}} | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
     $bodyTaskSuccSb = $subHead01suc + "Successful SureBackup Tasks" + $subHead02 + $bodyTaskSuccSb
   }
+}
+}Else{
+
+# Get Successful SureBackup Tasks V12 
+$bodyTaskSuccSb = $null
+
+#ED V12. Fix up.  Added VirusScanStatus Test
+If ($showTaskSuccessSb) {
+  If ($successTasksSb.count -gt 0) {
+    $bodyTaskSuccSb = $successTasksSb | Select-Object @{Name="VM Name"; Expression = {$_.Name}},
+      @{Name="Job Name"; Expression = {$_.JobName}},
+	  @{Name="Start Time"; Expression = {$_.CreationTime}},
+      @{Name="Stop Time"; Expression = {If ($_.EndTime -eq "1/1/1900 12:00:00 AM"){"-"} Else {$_.EndTime}}},
+      @{Name="Duration (HH:MM:SS)"; Expression = {Get-Duration -ts $(New-TimeSpan $_.CreationTime $_.EndTime)}},
+      @{Name="Heartbeat Test"; Expression = {$_.HeartbeatStatus}},
+      @{Name="Ping Test"; Expression = {$_.PingStatus}},
+      @{Name="Script Test"; Expression = {$_.TestScriptStatus}},
+      @{Name="Validation Test"; Expression = {$_.ValidationTestStatus}},
+	  @{Name="VirusScanStatus Test"; Expression = {$_.VirusScanStatus}},
+      @{Name="Result"; Expression = {$_.Result}} | Sort-Object "Start Time" | ConvertTo-HTML -Fragment
+    $bodyTaskSuccSb = $subHead01suc + "Successful SureBackup Tasks" + $subHead02 + $bodyTaskSuccSb
+  }
+}
 }
 
 # Get Configuration Backup Summary Info
 $bodySummaryConfig = $null
 If ($showSummaryConfig) {
-  $vbrConfigHash = @{
+#ED 27082023 added last run 
+ $vbrConfigHash = @{
     "Enabled" = $configBackup.Enabled
     "Status" = $configBackup.LastState
     "Target" = $configBackup.Target
@@ -4035,9 +4684,12 @@ If ($showSummaryConfig) {
     "Encrypted" = $configBackup.EncryptionOptions.Enabled
     "Last Result" = $configBackup.LastResult
     "Next Run" = $configBackup.NextRun
+	"Last Run" = (Get-VBRJobScheduleOptions -Job $configBackup.Name).LatestRunLocal
   }
+    
+  
   $vbrConfigObj = New-Object -TypeName PSObject -Property $vbrConfigHash
-  $bodySummaryConfig = $vbrConfigObj | Select-Object Enabled, Status, Target, Schedule, "Restore Points", "Next Run", Encrypted, "Last Result" | ConvertTo-HTML -Fragment
+  $bodySummaryConfig = $vbrConfigObj | Select-Object Enabled, Status, Target, Schedule, "Restore Points","Last Run", "Next Run", Encrypted, "Last Result" | ConvertTo-HTML -Fragment
   If ($configBackup.LastResult -eq "Warning" -or !$configBackup.Enabled) {
     $configHead = $subHead01war
   } ElseIf ($configBackup.LastResult -eq "Success") {
@@ -4054,11 +4706,59 @@ If ($showSummaryConfig) {
 $bodyProxy = $null
 If ($showProxy) {
   If ($proxyList.count -gt 0) {
-    $arrProxy = $proxyList | Get-VBRProxyInfo | Select-Object @{Name="Proxy Name"; Expression = {$_.ProxyName}},
-      @{Name="Transport Mode"; Expression = {$_.tMode}}, @{Name="Max Tasks"; Expression = {$_.MaxTasks}},
-      @{Name="Proxy Host"; Expression = {$_.RealName}}, @{Name="Host Type"; Expression = {$_.pType}},
-      Enabled, @{Name="IP Address"; Expression = {$_.IP}},
-      @{Name="RT (ms)"; Expression = {$_.Response}}, Status
+	 
+#	ED 2808203
+#	Both Windows and Linux proxies should have pots 6160 and 6162 opened. Lets complement the ping check with the proxies ports. 
+
+# Check port 6160 and 6162 
+$TestProxy 		=	@()
+$PortsToTest	= 	@("6162","6160")
+foreach ($HostPr in $proxyList.host.name){
+ForEach ($TPort in $PortsToTest){
+#Write-Host " Testing Host " $HostPr " Port " $TPort 
+$TestProxy += Test-Port  $HostPr $TPort -ErrorAction SilentlyContinue
+}}
+#$TestProxy	 
+
+# Build Array with ping test (original code)	  
+$arrProxy=@()
+ForEach ($Proxy in $proxyList ){
+    $arrProxy+= $Proxy | Get-VBRProxyInfo | Select-Object @{Name="Proxy Name"; Expression = {$_.ProxyName}},
+      @{Name="Transport Mode"; Expression = {$_.tMode}}, 
+	  @{Name="Max Tasks"; Expression = {$_.MaxTasks}},
+      @{Name="Proxy Host"; Expression = {$_.RealName}}, 
+	  @{Name="Host Type"; Expression = {$_.pType}},
+      Enabled, 
+	  @{Name="IP Address"; Expression = {$_.IP}},
+	  @{Name="RT (ms)"; Expression = {$_.Response}}, 
+	  @{Name="Ping"; Expression = {$_.Status}},
+	  @{Name="Status"; Expression = {"Checking"}},
+	   @{Name="IsUnavailable"; Expression = {[String]$proxy.Host.IsUnavailable}}
+	
+	#$Proxy | Add-Member -MemberType NoteProperty -Name IsUnavailable -Value ([String]$proxy.Host.IsUnavailable)
+}
+
+# Append the proxy port test to the $arrProxy. If all three ports are down then flag status as Dead.	  
+		$x=-1			
+		ForEach ($aProxy in $arrProxy){
+			$x=$x+1
+			ForEach ($bProxy in $TestProxy){ 
+			If ($aProxy."Proxy Host" -eq $bProxy.RemoteHostname){
+				If ($bProxy.PortOpened -eq $null){$bProxy.PortOpened ="False"}
+					 $aProxy | Add-Member -MemberType NoteProperty -Name $bProxy.RemotePort -Value $bProxy.PortOpened
+					 If ($aProxy.Ping -eq "Alive" -or $aProxy.6160 -eq "True" -or $aProxy.6162 -eq "True"){
+					 $arrProxy[$x].Status = "Alive"}Else{
+					 $arrProxy[$x].Status = "Dead"
+					}
+				}
+			}
+		}
+		
+# Tidy up layout 
+$arrProxy =  $arrProxy |  Select "Proxy Name", "Transport Mode", "Max Tasks", "Proxy Host", "Host Type", Enabled, IsUnavailable, "IP Address", "RT (ms)", Ping, "6160", "6162", Status
+
+# Check Status
+
     $bodyProxy = $arrProxy | Sort-Object "Proxy Host" |  ConvertTo-HTML -Fragment
     If ($arrProxy.Status -match "Dead") {
       $proxyHead = $subHead01err
@@ -4181,6 +4881,7 @@ If ($showReplicaTarget) {
   }
 }
 
+# ED To be checked in V11. 9.5 reports data in V11
 # Get Veeam Services Info
 $bodyServices = $null
 If ($showServices) {
@@ -4190,7 +4891,8 @@ If ($showServices) {
   If ($vServices.count -gt 0) {
     $vServices = $vServices | Select-Object "Server Name", "Service Name",
       @{Name="Status"; Expression = {If ($_.Status -eq "Stopped"){"Not Running"} Else {$_.Status}}}
-    $bodyServices = $vServices | Sort-Object "Server Name", "Service Name" | ConvertTo-HTML -Fragment
+    
+	$bodyServices = $vServices | Sort-Object "Server Name", "Service Name" | ConvertTo-HTML -Fragment
     If ($vServices.status -match "Not Running") {
       $svcHead = $subHead01err
     } ElseIf ($vServices.status -notmatch "Running") {
@@ -4200,9 +4902,10 @@ If ($showServices) {
     } Else {
       $svcHead = $subHead01
     }
-    $bodyServices = $svcHead + "Veeam Services (Windows)" + $subHead02 + $bodyServices
+    If ($hideRunningSvc){$bodyServices = $svcHead + "Veeam Services (Windows) Failures" + $subHead02 + $bodyServices}Else{
+	$bodyServices = $svcHead + "Veeam Services (Windows)" + $subHead02 + $bodyServices}
   }
-}
+  }
 
 #region license info
 # Get License Info
@@ -4340,8 +5043,16 @@ If ($htmlOutput -match "#FB9895") {
 #endregion
 
 #region Output
+
+# ED. We save the report to disk even if empty. This helps to track down issues.
+# ED. If the report has no data do we still want it emailed or auto launch?  
+
+ $ReportHasData = $allJobs + $allJobsTp + $allJobsEp +  $allSess + $allFileSess + $allSessResto + $allSessTp + $allSessEp +  $jobBackups + $wfTasksSb + $missingVMsEmail
+ #Not working correctly >>>. + $arrAllTasksSb+ $successSessionsSb + $allJobsSb + $allSessSb + $repoList + $repoListSo + $vbrMasterHash +
+
 # Send Report via Email
-If ($sendEmail) {
+#ED add $ReportHasData 
+If (($sendEmail -and ($ReportHasDataEmail -eq $False)) -or ( $sendEmail -and $ReportHasData )) {
   $smtp = New-Object System.Net.Mail.SmtpClient($emailHost, $emailPort)
   $smtp.Credentials = New-Object System.Net.NetworkCredential($emailUser, $emailPass)
   $smtp.EnableSsl = $emailEnableSSL
@@ -4369,7 +5080,8 @@ If ($sendEmail) {
 # Save HTML Report to File
 If ($saveHTML) {
   $htmlOutput | Out-File $pathHTML
-  If ($launchHTML) {
+  #ED add $ReportHasData 
+  If (($launchHTML -and ($ReportHasDataEmail -eq $False)) -or ( $launchHTML -and $ReportHasData )){
     Invoke-Item $pathHTML
   }
 }

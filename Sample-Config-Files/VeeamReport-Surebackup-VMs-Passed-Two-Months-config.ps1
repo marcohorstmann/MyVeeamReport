@@ -47,8 +47,8 @@
 	 
 #>
 #The default is "$ReportHasDataEmail = $false" to ignore this setting.
-#$ReportHasDataEmail = $true
-$ReportHasDataEmail = $false
+$ReportHasDataEmail = $true
+#$ReportHasDataEmail = $false
 
 <#
 	.$ReportSBFailingOnly
@@ -64,8 +64,9 @@ $ReportHasDataEmail = $false
 
 #>
 #The default is "$ReportSBFailingOnly = $false" to ignore this setting.
-#$ReportSBFailingOnly = $true
-$ReportSBFailingOnly = $false
+$ReportSBFailingOnly = $true
+#$ReportSBFailingOnly = $false
+
 
 
 # VBR Server (Server Name, FQDN, IP or localhost)
@@ -73,9 +74,10 @@ $vbrServer = $env:computername
 #$vbrServer = "lab-vbr01"
 # Report mode (RPO) - valid modes: any number of hours, Weekly or Monthly
 # 24, 48, "Weekly", "Monthly"
-$reportMode = 24
+$reportMode = 1490
+
 # Report Title
-$rptTitle = "My Veeam Report"
+$rptTitle = "Surebackup All VMs That Passed over the last two Months"
 # Show VBR Server name in report header
 $showVBR = $true
 # HTML Report Width (Percent)
@@ -88,25 +90,25 @@ $VeeamCorePath = "C:\Program Files\Veeam\Backup and Replication\Backup\Veeam.Bac
 #If you are connect remotely to VBR server you need to use another console.
 #$VeeamCorePath = "C:\Program Files\Veeam\Backup and Replication\Console\Veeam.Backup.Core.dll"
 
+
 # ED Moving reports into reports folder
 if(!(Test-Path ".\Reports")){
 	MD ".\Reports"}
-	
 # Save HTML output to a file
 $saveHTML = $true
 # HTML File output path and filename
-$pathHTML 			= ".\Reports\MyVeeamReport_$(Get-Date -format yyyyMMdd_HHmmss).htm"
+$pathHTML = ".\Reports\VeeamReport-Surebackup-All-VMs-That-Passed-Over-The-Last-Two-Months_$(Get-Date -format yyyyMMdd_HHmmss).htm"
 # Launch HTML file after creation
 $launchHTML = $true
 
 # Save CSV output to files
-$saveCSV = $true
+$saveCSV = $false
 # CSV File output path and filename
-$baseFilenameCSV 	= ".\Reports\MyVeeamReport_$(Get-Date -format yyyyMMdd_HHmmss)"
+$baseFilenameCSV = ".\Reports\VeeamReport-Surebackup-All-VMs-That-Passed-Over-The-Last-Two-Months_$(Get-Date -format yyyyMMdd_HHmmss)"
 # Export All Tasks to CSV file
-$exportAllTasksBkToCSV = $true
+$exportAllTasksBkToCSV = $false
 #Delimiter for CSV files
-$setCSVDelimiter = ";"
+$setCSVDelimiter = ","
 
 
 # Email configuration
@@ -131,14 +133,14 @@ $dtSubject = $false
 
 #--------------------- Disable reports you do not need by setting them to "$false" below:                                                                                        
 # Show VM Backup Protection Summary (across entire infrastructure)
-$showSummaryProtect = $true
+$showSummaryProtect = $false
 # Show VMs with No Successful Backups within RPO ($reportMode)
-$showUnprotectedVMs = $true
+$showUnprotectedVMs = $false
 # Show unprotected VMs for informational purposes only
-$showUnprotectedVMsInfo = $true
+$showUnprotectedVMsInfo = $false
 # Show VMs with Successful Backups within RPO ($reportMode)
 # Also shows VMs with Only Backups with Warnings within RPO ($reportMode)
-$showProtectedVMs = $true
+$showProtectedVMs = $false
 # Exclude VMs from Missing and Successful Backups sections
 # $excludevms = @("vm1","vm2","*_replica")
 $excludeVMs = @("")
@@ -151,51 +153,53 @@ if(Test-Path $ExcludeVMsSiteA){
 $ExcludeVMs += Get-Content $ExcludeVMsSiteA}
 if(Test-Path $ExcludeVMsSiteB){
 $ExcludeVMs += Get-Content $ExcludeVMsSiteB}
-#$excludeVMs += @("*_replica*","*vLAB","*vLAN","*Template*")
+$excludeVMs += @("*_replica*","*vLAB*","*vLAN","*Template*")
 $excludeVMs = $excludeVMs| Sort-Object -Property @{Expression={$_.Trim()}} -Unique
-Write-Host " Excluded VM's "
 $excludeVMs
 
 # Exclude VMs from Missing and Successful Backups sections in the following (vCenter) folder(s)
 # $excludeFolder = @("folder1","folder2","*_testonly")
-$excludeFolder = @("")
+#$excludeFolder = @("")
+$excludeFolder = @("DR-Testing","*Testing*","*Template*","*Powered-Off*","vm","vCLS","*To-Be-Deleted*","*vLab*")
 # Exclude VMs from Missing and Successful Backups sections in the following (vCenter) datacenter(s)
 # $excludeDC = @("dc1","dc2","dc*")
-$excludeDC = @("")
+#$excludeDC = @("")
+$excludeDC = @("*Test*")
 # Exclude Templates from Missing and Successful Backups sections
-$excludeTemp = $false
+$excludeTemp = $true
 
 # Show VMs Backed Up by Multiple Jobs within time frame ($reportMode)
-$showMultiJobs = $true
+$showMultiJobs = $false
 
+  <#
 # Show Backup Session Summary
-$showSummaryBk = $true
+$showSummaryBk = $false
 # Show Backup Job Status
-$showJobsBk = $true
+$showJobsBk = $false
 # Show File Backup Job Status
-$showFileJobsBk = $true
+$showFileJobsBk = $false
 # Show Backup Job Size (total)
-$showBackupSizeBk = $true
+$showBackupSizeBk = $false
 # Show File Backup Job Size (total)
-$showFileBackupSizeBk = $true
+$showFileBackupSizeBk = $false
 # Show detailed information for Backup Jobs/Sessions (Avg Speed, Total(GB), Processed(GB), Read(GB), Transferred(GB), Dedupe, Compression)
-$showDetailedBk = $true
+$showDetailedBk = $false
 # Show all Backup Sessions within time frame ($reportMode)
-$showAllSessBk = $true
+$showAllSessBk = $false
 # Show all Backup Tasks from Sessions within time frame ($reportMode)
-$showAllTasksBk = $true
+$showAllTasksBk = $false
 # Show Running Backup Jobs
-$showRunningBk = $true
+$showRunningBk = $false
 # Show Running Backup Tasks
-$showRunningTasksBk = $true
+$showRunningTasksBk = $false
 # Show Backup Sessions w/Warnings or Failures within time frame ($reportMode)
-$showWarnFailBk = $true
+$showWarnFailBk = $false
 # Show Backup Tasks w/Warnings or Failures from Sessions within time frame ($reportMode)
-$showTaskWFBk = $true
+$showTaskWFBk = $false
 # Show Successful Backup Sessions within time frame ($reportMode)
-$showSuccessBk = $true
+$showSuccessBk = $false
 # Show Successful Backup Tasks from Sessions within time frame ($reportMode)
-$showTaskSuccessBk = $true
+$showTaskSuccessBk = $false
 # Only show last Session for each Backup Job
 $onlyLastBk = $false
 # Only report on the following Backup Job(s)
@@ -203,16 +207,16 @@ $onlyLastBk = $false
 $backupJob = @("")
 
 # Show Running Restore VM Sessions
-$showRestoRunVM = $true
+$showRestoRunVM = $false
 # Show Completed Restore VM Sessions within time frame ($reportMode)
-$showRestoreVM = $true
+$showRestoreVM = $false
 
 # Show Replication Session Summary
 $showSummaryRp = $false
 # Show Replication Job Status
 $showJobsRp = $false
 # Show detailed information for Replication Jobs/Sessions (Avg Speed, Total(GB), Processed(GB), Read(GB), Transferred(GB), Dedupe, Compression)
-$showDetailedRp = $true
+$showDetailedRp = $false
 # Show all Replication Sessions within time frame ($reportMode)
 $showAllSessRp = $false
 # Show all Replication Tasks from Sessions within time frame ($reportMode)
@@ -236,33 +240,33 @@ $onlyLastRp = $false
 $replicaJob = @("")
 
 # Show Backup Copy Session Summary
-$showSummaryBc = $true
+$showSummaryBc = $false
 # Show Backup Copy Job Status
-$showJobsBc = $true
+$showJobsBc = $false
 # Show Backup Copy Job Size (total)
-$showBackupSizeBc = $true
+$showBackupSizeBc = $false
 # Show detailed information for Backup Copy Sessions (Avg Speed, Total(GB), Processed(GB), Read(GB), Transferred(GB), Dedupe, Compression)
-$showDetailedBc = $true
+$showDetailedBc = $false
 # Show all Backup Copy Sessions within time frame ($reportMode)
-$showAllSessBc = $true
+$showAllSessBc = $false
 # Show all Backup Copy Tasks from Sessions within time frame ($reportMode)
-$showAllTasksBc = $true
+$showAllTasksBc = $false
 # Show Idle Backup Copy Sessions
-$showIdleBc = $true
+$showIdleBc = $false
 # Show Pending Backup Copy Tasks
-$showPendingTasksBc = $true
+$showPendingTasksBc = $false
 # Show Working Backup Copy Jobs
-$showRunningBc = $true
+$showRunningBc = $false
 # Show Working Backup Copy Tasks
-$showRunningTasksBc = $true
+$showRunningTasksBc = $false
 # Show Backup Copy Sessions w/Warnings or Failures within time frame ($reportMode)
-$showWarnFailBc = $true
+$showWarnFailBc = $false
 # Show Backup Copy Tasks w/Warnings or Failures from Sessions within time frame ($reportMode)
-$showTaskWFBc = $true
+$showTaskWFBc = $false
 # Show Successful Backup Copy Sessions within time frame ($reportMode)
-$showSuccessBc = $true
+$showSuccessBc = $false
 # Show Successful Backup Copy Tasks from Sessions within time frame ($reportMode)
-$showTaskSuccessBc = $true
+$showTaskSuccessBc = $false
 # Only show last Session for each Backup Copy Job
 $onlyLastBc = $false
 # Only report on the following Backup Copy Job(s)
@@ -270,33 +274,33 @@ $onlyLastBc = $false
 $bcopyJob = @("")
 
 # Show Tape Backup Session Summary
-$showSummaryTp = $true
+$showSummaryTp = $false
 # Show Tape Backup Job Status
-$showJobsTp = $true
+$showJobsTp = $false
 # Show detailed information for Tape Backup Sessions (Avg Speed, Total(GB), Read(GB), Transferred(GB))
-$showDetailedTp = $true
+$showDetailedTp = $false
 # Show all Tape Backup Sessions within time frame ($reportMode)
-$showAllSessTp = $true
+$showAllSessTp = $false
 # Show all Tape Backup Tasks from Sessions within time frame ($reportMode)
-$showAllTasksTp = $true
+$showAllTasksTp = $false
 # Show Waiting Tape Backup Sessions
-$showWaitingTp = $true
+$showWaitingTp = $false
 # Show Idle Tape Backup Sessions
-$showIdleTp = $true
+$showIdleTp = $false
 # Show Pending Tape Backup Tasks
-$showPendingTasksTp = $true
+$showPendingTasksTp = $false
 # Show Working Tape Backup Jobs
-$showRunningTp = $true
+$showRunningTp = $false
 # Show Working Tape Backup Tasks
-$showRunningTasksTp = $true
+$showRunningTasksTp = $false
 # Show Tape Backup Sessions w/Warnings or Failures within time frame ($reportMode)
-$showWarnFailTp = $true
+$showWarnFailTp = $false
 # Show Tape Backup Tasks w/Warnings or Failures from Sessions within time frame ($reportMode)
-$showTaskWFTp = $true
+$showTaskWFTp = $false
 # Show Successful Tape Backup Sessions within time frame ($reportMode)
-$showSuccessTp = $true
+$showSuccessTp = $false
 # Show Successful Tape Backup Tasks from Sessions within time frame ($reportMode)
-$showTaskSuccessTp = $true
+$showTaskSuccessTp = $false
 # Only show last Session for each Tape Backup Job
 $onlyLastTp = $false
 # Only report on the following Tape Backup Job(s)
@@ -304,34 +308,34 @@ $onlyLastTp = $false
 $tapeJob = @("")
 
 # Show all Tapes
-$showTapes = $true
+$showTapes = $false
 # Show all Tapes by (Custom) Media Pool
-$showTpMp = $true
+$showTpMp = $false
 # Show all Tapes by Vault
-$showTpVlt = $true
+$showTpVlt = $false
 # Show all Expired Tapes
-$showExpTp = $true
+$showExpTp = $false
 # Show Expired Tapes by (Custom) Media Pool
-$showExpTpMp = $true
+$showExpTpMp = $false
 # Show Expired Tapes by Vault
-$showExpTpVlt = $true
+$showExpTpVlt = $false
 # Show Tapes written to within time frame ($reportMode)
-$showTpWrt = $true
+$showTpWrt = $false
 
 # Show Agent Backup Session Summary
-$showSummaryEp = $true
+$showSummaryEp = $false
 # Show Agent Backup Job Status
-$showJobsEp = $true
+$showJobsEp = $false
 # Show Agent Backup Job Size (total)
-$showBackupSizeEp = $true
+$showBackupSizeEp = $false
 # Show all Agent Backup Sessions within time frame ($reportMode)
-$showAllSessEp = $true
+$showAllSessEp = $false
 # Show Running Agent Backup jobs
-$showRunningEp = $true
+$showRunningEp = $false
 # Show Agent Backup Sessions w/Warnings or Failures within time frame ($reportMode)
-$showWarnFailEp = $true
+$showWarnFailEp = $false
 # Show Successful Agent Backup Sessions within time frame ($reportMode)
-$showSuccessEp = $true
+$showSuccessEp = $false
 # Only show last session for each Agent Backup Job
 $onlyLastEp = $false
 # Only report on the following Agent Backup Job(s)
@@ -339,41 +343,41 @@ $onlyLastEp = $false
 $epbJob = @("")
 
 # Show Configuration Backup Summary
-$showSummaryConfig = $true
+$showSummaryConfig = $false
 # Show Proxy Info
-$showProxy = $true
+$showProxy = $false
 # Show Repository Info
-$showRepo = $true
+$showRepo = $false
 # Show Repository Permissions for Agent Jobs
-$showRepoPerms = $true
+$showRepoPerms = $false
 # Show Replica Target Info
-$showReplicaTarget = $true
+$showReplicaTarget = $false
 # Show Veeam Services Info (Windows Services)
-$showServices = $true
+$showServices = $false
 # Show only Services that are NOT running
 $hideRunningSvc = $false
 # Show License expiry info
-$showLicExp = $true
-
-
+$showLicExp = $false
+#>
+ 
 # Show SureBackup Session Summary
-$showSummarySb = $true
+$showSummarySb = $false
 # Show SureBackup Job Status
-$showJobsSb = $true
+$showJobsSb = $false
 # Show all SureBackup Sessions within time frame ($reportMode)
-$showAllSessSb = $true
+$showAllSessSb = $false
 # Show all SureBackup Tasks from Sessions within time frame ($reportMode)
-$showAllTasksSb = $true
+$showAllTasksSb = $fales
 # Show Running SureBackup Jobs
-$showRunningSb = $true
+$showRunningSb = $false
 # Show Running SureBackup Tasks
-$showRunningTasksSb = $true
+$showRunningTasksSb = $false
 # Show SureBackup Sessions w/Warnings or Failures within time frame ($reportMode)
-$showWarnFailSb = $true
+$showWarnFailSb = $false
 # Show SureBackup Tasks w/Warnings or Failures from Sessions within time frame ($reportMode)
-$showTaskWFSb = $true
+$showTaskWFSb 	= $false
 # Show Successful SureBackup Sessions within time frame ($reportMode)
-$showSuccessSb = $true
+$showSuccessSb 	= $false
 # Show Successful SureBackup Tasks from Sessions within time frame ($reportMode)
 $showTaskSuccessSb = $true
 # Only show last Session for each SureBackup Job
